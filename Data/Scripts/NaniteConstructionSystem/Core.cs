@@ -224,7 +224,7 @@ namespace NaniteConstructionSystem
 
         public static NaniteConstructionBlock CreateNaniteFactory(IMyEntity entity)
         {
-            Logging.Instance.WriteLine($"Nanite: Creating NaniteConstructionBlock for EntityId#{entity.EntityId}!");
+            Logging.Instance.WriteLine($"Nanite: Creating NaniteConstructionBlock for EntityId#{entity.EntityId}!", 1);
             NaniteConstructionBlock m_block = new NaniteConstructionBlock(entity);
 
             if (!NaniteBlocks.ContainsKey(entity.EntityId))
@@ -241,7 +241,7 @@ namespace NaniteConstructionSystem
                 NaniteSync.SendNeedTerminalSettings(entity.EntityId);
             else
             {
-                Logging.Instance.WriteLine($"Nanite: Not requesting terminal settings {{NaniteSync(null)={NaniteSync == null}, IsServer={Sync.IsServer}}}");
+                Logging.Instance.WriteLine($"Nanite: Not requesting terminal settings {{NaniteSync(null)={NaniteSync == null}, IsServer={Sync.IsServer}}}", 2);
             }
 
             return m_block;
@@ -253,7 +253,7 @@ namespace NaniteConstructionSystem
             {
                 if (block.Value == null)
                 {
-                    Logging.Instance.WriteLine($"Nanite: EntityId#{block.Key} has a null reference? Recreating NaniteConstructionBlock({block.Key})...");
+                    Logging.Instance.WriteLine($"Nanite: EntityId#{block.Key} has a null reference? Recreating NaniteConstructionBlock({block.Key})...", 2);
                     // Remove broken reference
                     NaniteBlocks.Remove(block.Key);
 
@@ -262,7 +262,7 @@ namespace NaniteConstructionSystem
 
                     if (entity == null)
                     {
-                        Logging.Instance.WriteLine($"Nanite: EntityId#{block.Key} no longer exists, skipping...");
+                        Logging.Instance.WriteLine($"Nanite: EntityId#{block.Key} no longer exists, skipping...", 2);
                         continue;
                     }
 
@@ -1128,7 +1128,7 @@ namespace NaniteConstructionSystem
                 if (block == null || block.BlockDefinition.IsNull() || block.BlockDefinition.SubtypeName == null)
                     return;
 
-                Logging.Instance.WriteLine($"CustomControlGetter : {block.BlockDefinition.SubtypeName}");
+                Logging.Instance.WriteLine($"CustomControlGetter : {block.BlockDefinition.SubtypeName}", 1);
                 if (block.BlockDefinition.SubtypeName == "LargeNaniteAreaBeacon")
                 {
                     controls.RemoveRange(controls.Count - 17, 16);

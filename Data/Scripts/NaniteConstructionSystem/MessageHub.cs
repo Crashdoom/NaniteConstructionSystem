@@ -36,7 +36,7 @@ namespace NaniteConstructionSystem
             if (MyAPIGateway.Session.Player != null)
                 message.SenderSteamId = MyAPIGateway.Session.Player.SteamUserId;
             var byteData = MyAPIGateway.Utilities.SerializeToBinary<MessageBase>(message);
-            Logging.Instance.WriteLine(string.Format("SendMessageToServer {0} {1} {2}, {3}b", message.SenderSteamId, message.Side, message.GetType().Name, byteData.Length), 0);
+            Logging.Instance.WriteLine(string.Format("SendMessageToServer {0} {1} {2}, {3}b", message.SenderSteamId, message.Side, message.GetType().Name, byteData.Length), 2);
             MyAPIGateway.Multiplayer.SendMessageToServer(MessageId, byteData);
         }
 
@@ -104,7 +104,7 @@ namespace NaniteConstructionSystem
             message.Side = MessageSide.ClientSide;
             var byteData = MyAPIGateway.Utilities.SerializeToBinary(message);
 
-            Logging.Instance.WriteLine(string.Format("SendMessageToPlayer {0} {1} {2}, {3}b", steamId, message.Side, message.GetType().Name, byteData.Length), 0);
+            Logging.Instance.WriteLine(string.Format("SendMessageToPlayer {0} {1} {2}, {3}b", steamId, message.Side, message.GetType().Name, byteData.Length), 2);
 
             try
             {
@@ -121,10 +121,10 @@ namespace NaniteConstructionSystem
             {
                 var message = MyAPIGateway.Utilities.SerializeFromBinary<MessageBase>(data);
 
-                Logging.Instance.WriteLine("HandleMessage()", 0);
+                Logging.Instance.WriteLine("HandleMessage()", 2);
                 if (message != null)
                 {
-                    Logging.Instance.WriteLine(string.Format("HandleMessage() {0} {1} {2}, {3}b", message.SenderSteamId, message.Side, message.GetType().Name, data.Length), 0);
+                    Logging.Instance.WriteLine(string.Format("HandleMessage() {0} {1} {2}, {3}b", message.SenderSteamId, message.Side, message.GetType().Name, data.Length), 2);
                     message.InvokeProcessing();
                 }
                 return;

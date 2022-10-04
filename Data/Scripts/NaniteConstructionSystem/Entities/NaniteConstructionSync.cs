@@ -350,7 +350,7 @@ namespace NaniteConstructionSystem.Entities
                 if (MyAPIGateway.Session == null)
                     return;
 
-                Logging.Instance.WriteLine($"Nanite[TerminalSettings]: Unserializing...");
+                Logging.Instance.WriteLine($"Nanite[TerminalSettings]: Unserializing...", 2);
 
                 var blockId = MyAPIGateway.Utilities.SerializeFromXML<long>(ASCIIEncoding.ASCII.GetString(data));
 
@@ -361,7 +361,7 @@ namespace NaniteConstructionSystem.Entities
                 {
                     if (item.Key == blockId)
                     {
-                        Logging.Instance.WriteLine($"Nanite[TerminalSettings]: Found block!");
+                        Logging.Instance.WriteLine($"Nanite[TerminalSettings]: Found block!", 2);
                         SendTerminalSettings(blockId);
                         break;
                     }
@@ -377,13 +377,13 @@ namespace NaniteConstructionSystem.Entities
         {
             if (MyAPIGateway.Multiplayer == null)
             {
-                Logging.Instance.WriteLine($"Nanite: ERR Requesting TerminalSettings for EntityId#{blockId} as we're not in multiplayer...");
+                Logging.Instance.WriteLine($"Nanite: ERR Requesting TerminalSettings for EntityId#{blockId} as we're not in multiplayer...", 2);
                 return;
             }
 
             if (Sync.IsServer)
             {
-                Logging.Instance.WriteLine($"Nanite: ERR Requesting AssemblerSettings for EntityId#{blockId} as we're the server!");
+                Logging.Instance.WriteLine($"Nanite: ERR Requesting AssemblerSettings for EntityId#{blockId} as we're the server!", 2);
                 return;
             }
 
@@ -395,11 +395,11 @@ namespace NaniteConstructionSystem.Entities
         {
             try
             {
-                Logging.Instance.WriteLine($"Nanite[AssemblerSettings]: Received AssemblerSettings request from SteamId64#{steamId}...");
+                Logging.Instance.WriteLine($"Nanite[AssemblerSettings]: Received AssemblerSettings request from SteamId64#{steamId}...", 2);
                 if (MyAPIGateway.Session == null)
                     return;
 
-                Logging.Instance.WriteLine($"Nanite[AssemblerSettings]: Unserializing...");
+                Logging.Instance.WriteLine($"Nanite[AssemblerSettings]: Unserializing...", 2);
 
                 var blockId = MyAPIGateway.Utilities.SerializeFromXML<long>(ASCIIEncoding.ASCII.GetString(data));
                 Logging.Instance.WriteLine($"Nanite[AssemblerSettings]: Received AssemblerSettings request from SteamId64#{steamId} for BlockId#{blockId}...");
@@ -407,7 +407,7 @@ namespace NaniteConstructionSystem.Entities
                 {
                     if (item.Key == blockId)
                     {
-                        Logging.Instance.WriteLine($"Nanite[TerminalSettings]: Found block!");
+                        Logging.Instance.WriteLine($"Nanite[TerminalSettings]: Found block!", 2);
                         SendAssemblerSettings(blockId);
                         break;
                     }
@@ -424,13 +424,13 @@ namespace NaniteConstructionSystem.Entities
         {
             if (MyAPIGateway.Multiplayer == null)
             {
-                Logging.Instance.WriteLine($"Nanite: ERR Requesting AssemblerSettings for EntityId#{blockId} as we're not in multiplayer...");
+                Logging.Instance.WriteLine($"Nanite: ERR Requesting AssemblerSettings for EntityId#{blockId} as we're not in multiplayer...", 2);
                 return;
             }
 
             if (Sync.IsServer)
             {
-                Logging.Instance.WriteLine($"Nanite: ERR Requesting AssemblerSettings for EntityId#{blockId} as we're the server!");
+                Logging.Instance.WriteLine($"Nanite: ERR Requesting AssemblerSettings for EntityId#{blockId} as we're the server!", 2);
                 return;
             }
 
@@ -485,13 +485,13 @@ namespace NaniteConstructionSystem.Entities
         {
             if (MyAPIGateway.Multiplayer == null)
             {
-                Logging.Instance.WriteLine($"Nanite: ERR Requesting BeaconTerminalSettings for EntityId#{blockId} as we're not in multiplayer...");
+                Logging.Instance.WriteLine($"Nanite: ERR Requesting BeaconTerminalSettings for EntityId#{blockId} as we're not in multiplayer...", 2);
                 return;
             }
 
             if (Sync.IsServer)
             {
-                Logging.Instance.WriteLine($"Nanite: ERR Requesting AssemblerSettings for EntityId#{blockId} as we're the server!");
+                Logging.Instance.WriteLine($"Nanite: ERR Requesting AssemblerSettings for EntityId#{blockId} as we're the server!", 2);
                 return;
             }
 

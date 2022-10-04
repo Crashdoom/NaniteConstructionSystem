@@ -58,8 +58,6 @@ namespace NaniteConstructionSystem
 
         public void WriteLine(string text, int logging = 0)
         {
-            MyLog.Default.WriteLineAndConsole($"Nanite.Logging: {text}");
-
             if (NaniteConstructionManager.Settings == null)
             { // Settings haven't been loaded yet, so put it in a waiting list
                 m_waitingList.Add(new WaitingToLog(text, logging));
