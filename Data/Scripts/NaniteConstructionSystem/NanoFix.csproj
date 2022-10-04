@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>NanoFix</RootNamespace>
     <AssemblyName>NanoFix</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -40,6 +40,12 @@
     <OutputPath>bin\x64\Release\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="ProtoBuf.Net">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64\ProtoBuf.Net.dll</HintPath>
+    </Reference>
+    <Reference Include="ProtoBuf.Net.Core">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64\ProtoBuf.Net.Core.dll</HintPath>
+    </Reference>
     <Reference Include="Sandbox.Common">
       <HintPath>..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64\Sandbox.Common.dll</HintPath>
     </Reference>
@@ -72,9 +78,6 @@
     <Reference Include="VRage">
       <HintPath>..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64\VRage.dll</HintPath>
     </Reference>
-    <Reference Include="VRage.Ansel">
-      <HintPath>..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64\VRage.Ansel.dll</HintPath>
-    </Reference>
     <Reference Include="VRage.Audio">
       <HintPath>..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64\VRage.Audio.dll</HintPath>
     </Reference>
@@ -96,14 +99,8 @@
     <Reference Include="VRage.Math.XmlSerializers">
       <HintPath>..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64\VRage.Math.XmlSerializers.dll</HintPath>
     </Reference>
-    <Reference Include="VRage.Native">
-      <HintPath>..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64\VRage.Native.dll</HintPath>
-    </Reference>
     <Reference Include="VRage.NativeAftermath">
       <HintPath>..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64\VRage.NativeAftermath.dll</HintPath>
-    </Reference>
-    <Reference Include="VRage.OpenVRWrapper">
-      <HintPath>..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64\VRage.OpenVRWrapper.dll</HintPath>
     </Reference>
     <Reference Include="VRage.Render">
       <HintPath>..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64\VRage.Render.dll</HintPath>
@@ -152,7 +149,7 @@
     <Compile Include="Entities\Targets\NaniteConstructionTargets.cs" />
     <Compile Include="Entities\Targets\NaniteDeconstructionTargets.cs" />
     <Compile Include="Entities\Targets\NaniteFloatingTargets.cs" />
-    <Compile Include="Entities\Targets\NaniteMedicalTargets.cs" />
+    <Compile Include="Entities\Targets\NaniteLifeSupportTargets.cs" />
     <Compile Include="Entities\Targets\NaniteMiningTargets.cs" />
     <Compile Include="Entities\Targets\NaniteProjectionTargets.cs" />
     <Compile Include="Entities\Targets\NaniteTargetBlocksBase.cs" />
@@ -165,12 +162,16 @@
     <Compile Include="Extensions\Nodes.cs" />
     <Compile Include="Extensions\OrderedSet.cs" />
     <Compile Include="Extensions\Sync.cs" />
+    <Compile Include="Integration\MultigridProjector\BlockLocation.cs" />
+    <Compile Include="Integration\MultigridProjector\BlockState.cs" />
+    <Compile Include="Integration\MultigridProjector\IMultigridProjectorApi.cs" />
+    <Compile Include="Integration\MultigridProjector\MultigridProjectorModAgent.cs" />
+    <Compile Include="Integration\ProjectorIntegration.cs" />
+    <Compile Include="Localization\Localize.cs" />
     <Compile Include="Logging.cs" />
     <Compile Include="MessageHub.cs" />
     <Compile Include="Particles\NaniteParticle.cs" />
     <Compile Include="Particles\NaniteParticleManager.cs" />
-    <Compile Include="Particles\NaniteParticleOld.cs" />
-    <Compile Include="Particles\ParticleBaseOld.cs" />
     <Compile Include="Particles\ParticleEffectManager.cs" />
     <Compile Include="Particles\ParticleRelativePath.cs" />
     <Compile Include="Settings\NaniteSettings.cs" />

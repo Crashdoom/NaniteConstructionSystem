@@ -296,16 +296,24 @@ namespace NaniteConstructionSystem.Entities.Targets
             if (player == null)
                 return false;
 
-            float health = MyVisualScriptLogicProvider.GetPlayersHealth(player.IdentityId);
-            float oxygen = MyVisualScriptLogicProvider.GetPlayersOxygenLevel(player.IdentityId);
-            float hydrogen = MyVisualScriptLogicProvider.GetPlayersHydrogenLevel(player.IdentityId);
-            float energy = MyVisualScriptLogicProvider.GetPlayersEnergyLevel(player.IdentityId);
+            try
+            {
+                float health = MyVisualScriptLogicProvider.GetPlayersHealth(player.IdentityId);
+                float oxygen = MyVisualScriptLogicProvider.GetPlayersOxygenLevel(player.IdentityId);
+                float hydrogen = MyVisualScriptLogicProvider.GetPlayersHydrogenLevel(player.IdentityId);
+                float energy = MyVisualScriptLogicProvider.GetPlayersEnergyLevel(player.IdentityId);
 
-            if (health < 100f
-                || (oxygen < m_o2RefillLevel && m_hasOxygen)
-                || (hydrogen < m_h2RefillLevel && m_hasHydrogen)
-                || energy < m_energyRefillLevel)
-                return true;
+                if (health < 100f
+                    || (oxygen < m_o2RefillLevel && m_hasOxygen)
+                    || (hydrogen < m_h2RefillLevel && m_hasHydrogen)
+                    || energy < m_energyRefillLevel)
+                    return true;
+            }
+            catch
+            {
+                Logging.Instance.WriteLine($"[Life Support] Could not retrieve life support status for Player#{player.IdentityId} ({player.DisplayName}) -- Player may still be joining...");
+                return false;
+            }
 
             return false;
         }

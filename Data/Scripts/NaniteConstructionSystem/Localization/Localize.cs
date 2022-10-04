@@ -60,28 +60,22 @@ namespace NaniteConstructionSystem
                     {
                         case (MyLanguagesEnum.Portuguese_Brazil):
                             return "Olá!";
-                            break;
                         case (MyLanguagesEnum.Dutch):
                             return "Hallo!";
-                            break;
                         case (MyLanguagesEnum.Spanish_HispanicAmerica):
                         case (MyLanguagesEnum.Spanish_Spain): // Both versions of Spanish will return "¡Hola!"
                             return "¡Hola!";
-                            break;
                         case (MyLanguagesEnum.French):
                             return "Bonjour!";
-                            break;
                         default: // English will always be "default" if the user's language hasn't been added yet
                             return "Hello!";
                     }
-                    break;
                 case (1):
                     switch (language)
                     {
                         default:
                             return "This is likely due to a list being modified during enumeration in a parallel thread, which is probably harmless and can be ignored.";
                     }
-                    break;
                 case (2):
                     switch (language)
                     {

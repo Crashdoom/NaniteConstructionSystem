@@ -28,3 +28,9 @@
 *.sln
 *.mod
 /obj/Release
+
+Data/Scripts/NaniteConstructionSystem/bin/
+
+Data/Scripts/NaniteConstructionSystem/.vs/
+
+Data/Scripts/NaniteConstructionSystem/obj/

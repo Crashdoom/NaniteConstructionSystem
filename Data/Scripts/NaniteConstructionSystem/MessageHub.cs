@@ -36,7 +36,7 @@ namespace NaniteConstructionSystem
             if (MyAPIGateway.Session.Player != null)
                 message.SenderSteamId = MyAPIGateway.Session.Player.SteamUserId;
             var byteData = MyAPIGateway.Utilities.SerializeToBinary<MessageBase>(message);
-            Logging.Instance.WriteLine(string.Format("SendMessageToServer {0} {1} {2}, {3}b", message.SenderSteamId, message.Side, message.GetType().Name, byteData.Length), 1);
+            Logging.Instance.WriteLine(string.Format("SendMessageToServer {0} {1} {2}, {3}b", message.SenderSteamId, message.Side, message.GetType().Name, byteData.Length), 0);
             MyAPIGateway.Multiplayer.SendMessageToServer(MessageId, byteData);
         }
 
@@ -104,21 +104,27 @@ namespace NaniteConstructionSystem
             message.Side = MessageSide.ClientSide;
             var byteData = MyAPIGateway.Utilities.SerializeToBinary(message);
 
-            Logging.Instance.WriteLine(string.Format("SendMessageToPlayer {0} {1} {2}, {3}b", steamId, message.Side, message.GetType().Name, byteData.Length), 1);
+            Logging.Instance.WriteLine(string.Format("SendMessageToPlayer {0} {1} {2}, {3}b", steamId, message.Side, message.GetType().Name, byteData.Length), 0);
 
-            MyAPIGateway.Multiplayer.SendMessageTo(MessageId, byteData, steamId);
+            try
+            {
+                MyAPIGateway.Multiplayer.SendMessageTo(MessageId, byteData, steamId);
+            } catch (Exception ex)
+            {
+                Logging.Instance.WriteLine($"Failed to send message to player: {ex}");
+            }
         }
 
-        public static void HandleMessage(byte[] data)
+        public static void HandleMessage(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             try
             {
                 var message = MyAPIGateway.Utilities.SerializeFromBinary<MessageBase>(data);
 
-                Logging.Instance.WriteLine("HandleMessage()", 1);
+                Logging.Instance.WriteLine("HandleMessage()", 0);
                 if (message != null)
                 {
-                    Logging.Instance.WriteLine(string.Format("HandleMessage() {0} {1} {2}, {3}b", message.SenderSteamId, message.Side, message.GetType().Name, data.Length), 1);
+                    Logging.Instance.WriteLine(string.Format("HandleMessage() {0} {1} {2}, {3}b", message.SenderSteamId, message.Side, message.GetType().Name, data.Length), 0);
                     message.InvokeProcessing();
                 }
                 return;
@@ -254,7 +260,7 @@ namespace NaniteConstructionSystem
 
             NaniteConstructionManager.Instance.UpdateSettingsChanges();
 
-            if (Sync.IsClient && !Sync.IsServer)
+            if (Sync.IsClient)
                 NaniteConstructionManager.Instance.InitializeControls();
         }
 
@@ -272,7 +278,7 @@ namespace NaniteConstructionSystem
 
         public override void ProcessServer()
         {
-            Logging.Instance.WriteLine(string.Format("Sending config to new client: {0}", SenderSteamId), 1);
+            Logging.Instance.WriteLine(string.Format("Sending config to new client: {0}", SenderSteamId), 0);
             // Send new clients the configuration
             MessageHub.SendMessageToPlayer(SenderSteamId, new MessageConfig() { Settings = NaniteConstructionManager.Settings });
         }

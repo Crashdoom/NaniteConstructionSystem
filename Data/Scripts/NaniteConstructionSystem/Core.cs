@@ -222,6 +222,55 @@ namespace NaniteConstructionSystem
             m_sync = new NaniteConstructionManagerSync();
         }
 
+        public static NaniteConstructionBlock CreateNaniteFactory(IMyEntity entity)
+        {
+            Logging.Instance.WriteLine($"Nanite: Creating NaniteConstructionBlock for EntityId#{entity.EntityId}!");
+            NaniteConstructionBlock m_block = new NaniteConstructionBlock(entity);
+
+            if (!NaniteBlocks.ContainsKey(entity.EntityId))
+                NaniteBlocks.Add(entity.EntityId, m_block);
+
+            m_block.UpdateCount += NaniteBlocks.Count * 30;
+            // Adds some gap between factory processing so they don't all process their targets at once.
+
+            IMySlimBlock slimBlock = ((MyCubeBlock)m_block.ConstructionBlock).SlimBlock as IMySlimBlock;
+            Logging.Instance.WriteLine(string.Format("ADDING Nanite Factory: conid={0} physics={1} ratio={2}",
+              entity.EntityId, m_block.ConstructionBlock.CubeGrid.Physics == null, slimBlock.BuildLevelRatio), 1);
+
+            if (NaniteSync != null && !Sync.IsServer)
+                NaniteSync.SendNeedTerminalSettings(entity.EntityId);
+            else
+            {
+                Logging.Instance.WriteLine($"Nanite: Not requesting terminal settings {{NaniteSync(null)={NaniteSync == null}, IsServer={Sync.IsServer}}}");
+            }
+
+            return m_block;
+        }
+
+        public static void VerifyBlocks()
+        {
+            foreach (var block in NaniteBlocks)
+            {
+                if (block.Value == null)
+                {
+                    Logging.Instance.WriteLine($"Nanite: EntityId#{block.Key} has a null reference? Recreating NaniteConstructionBlock({block.Key})...");
+                    // Remove broken reference
+                    NaniteBlocks.Remove(block.Key);
+
+                    IMyEntity entity;
+                    MyAPIGateway.Entities.TryGetEntityById(block.Key, out entity);
+
+                    if (entity == null)
+                    {
+                        Logging.Instance.WriteLine($"Nanite: EntityId#{block.Key} no longer exists, skipping...");
+                        continue;
+                    }
+
+                    CreateNaniteFactory(entity);
+                }
+            }
+        }
+
         #region Simulation / Init
         public override void BeforeStart()
         {
@@ -239,7 +288,7 @@ namespace NaniteConstructionSystem
                 }
 
                 m_sync.Initialize();
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(MessageHub.MessageId, MessageHub.HandleMessage);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(MessageHub.MessageId, MessageHub.HandleMessage);
 
                 if (Sync.IsServer)
                 {
@@ -262,7 +311,7 @@ namespace NaniteConstructionSystem
         {
             try
             {
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(MessageHub.MessageId, MessageHub.HandleMessage);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(MessageHub.MessageId, MessageHub.HandleMessage);
                 m_sync.Unload();
 
                 if (!Sync.IsServer)
@@ -290,8 +339,9 @@ namespace NaniteConstructionSystem
 
             CleanupOldBlocks();
 
-            if (Sync.IsClient)
+            if (Sync.IsClient && !Sync.IsServer)
             {
+                Logging.Instance.WriteLine($"Nanite: Connected to Server! Requesting TerminalSettings, AssemblerSettings, and BeaconTerminalSettings from server...");
                 MessageHub.SendMessageToServer(new MessageClientConnected());
 
                 foreach (var item in NaniteBlocks)

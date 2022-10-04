@@ -21,24 +21,27 @@ namespace NaniteConstructionSystem.Entities
         {
             if (Sync.IsClient)
             {
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8950, HandleUpdateState);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8951, HandleAddTarget);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8952, HandleCompleteTarget);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8953, HandleCancelTarget);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8954, HandleDetails);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8960, HandleTerminalSettings);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8962, HandleAssemblerSettings);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8971, HandleBeaconTerminalSettings);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8974, HandleFactoryGroup);
+                Logging.Instance.WriteLine($"Nanite: Running RegisterSecureMessageHandler for Client...");
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8950, HandleUpdateState);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8951, HandleAddTarget);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8952, HandleCompleteTarget);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8953, HandleCancelTarget);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8954, HandleDetails);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8960, HandleTerminalSettings);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8962, HandleAssemblerSettings);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8971, HandleBeaconTerminalSettings);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8974, HandleFactoryGroup);
             }
-            else if (Sync.IsServer)
+
+            if (Sync.IsServer)
             {
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8961, HandleNeedTerminalSettings);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8963, HandleNeedAssemblerSettings);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8964, HandleTerminalSettings);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8965, HandleAssemblerSettings);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8972, HandleBeaconTerminalSettings);
-                MyAPIGateway.Multiplayer.RegisterMessageHandler(8973, HandleNeedBeaconTerminalSettings);
+                Logging.Instance.WriteLine($"Nanite: Running RegisterSecureMessageHandler for Server...");
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8961, HandleNeedTerminalSettings);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8963, HandleNeedAssemblerSettings);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8964, HandleTerminalSettings);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8965, HandleAssemblerSettings);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8972, HandleBeaconTerminalSettings);
+                MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(8973, HandleNeedBeaconTerminalSettings);
             }
 
             m_init = true;
@@ -48,19 +51,19 @@ namespace NaniteConstructionSystem.Entities
         {
             if (m_init)
             {
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8950, HandleUpdateState);
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8951, HandleAddTarget);
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8952, HandleCompleteTarget);
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8953, HandleCancelTarget);
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8954, HandleDetails);
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8960, HandleTerminalSettings);
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8962, HandleAssemblerSettings);
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8961, HandleNeedTerminalSettings);
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8963, HandleNeedAssemblerSettings);
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8964, HandleTerminalSettings);
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8965, HandleAssemblerSettings);
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8972, HandleBeaconTerminalSettings);
-                MyAPIGateway.Multiplayer.UnregisterMessageHandler(8973, HandleNeedBeaconTerminalSettings);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8950, HandleUpdateState);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8951, HandleAddTarget);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8952, HandleCompleteTarget);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8953, HandleCancelTarget);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8954, HandleDetails);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8960, HandleTerminalSettings);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8962, HandleAssemblerSettings);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8961, HandleNeedTerminalSettings);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8963, HandleNeedAssemblerSettings);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8964, HandleTerminalSettings);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8965, HandleAssemblerSettings);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8972, HandleBeaconTerminalSettings);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8973, HandleNeedBeaconTerminalSettings);
             }
         }
 
@@ -68,7 +71,7 @@ namespace NaniteConstructionSystem.Entities
         /// Multiplayer packet handlers - Direct to the proper block handler
         /// </summary>
         /// <param name="data"></param>
-        private void HandleUpdateState(byte[] data)
+        private void HandleUpdateState(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             try
             {
@@ -80,6 +83,7 @@ namespace NaniteConstructionSystem.Entities
                 if (NaniteConstructionManager.NaniteBlocks == null)
                     return;
 
+                NaniteConstructionManager.VerifyBlocks();
                 foreach (var item in NaniteConstructionManager.NaniteBlocks)
                 {
                     if (item.Key == state.EntityId)
@@ -93,7 +97,7 @@ namespace NaniteConstructionSystem.Entities
         }
 
         // HandleAddTarget
-        private void HandleAddTarget(byte[] data)
+        private void HandleAddTarget(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             try
             {
@@ -105,6 +109,7 @@ namespace NaniteConstructionSystem.Entities
 
                 TargetData target = MyAPIGateway.Utilities.SerializeFromXML<TargetData>(ASCIIEncoding.ASCII.GetString(data));
                 Logging.Instance.WriteLine(string.Format("HandleAddTarget: {0}", target.ToString()), 1);
+                NaniteConstructionManager.VerifyBlocks();
                 foreach (var item in NaniteConstructionManager.NaniteBlocks)
                 {
                     if (item.Key == target.EntityId)
@@ -118,7 +123,7 @@ namespace NaniteConstructionSystem.Entities
         }
 
         // HandleCompleteTarget
-        private void HandleCompleteTarget(byte[] data)
+        private void HandleCompleteTarget(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             try
             {
@@ -129,6 +134,7 @@ namespace NaniteConstructionSystem.Entities
                     return;
 
                 TargetData target = MyAPIGateway.Utilities.SerializeFromXML<TargetData>(ASCIIEncoding.ASCII.GetString(data));
+                NaniteConstructionManager.VerifyBlocks();
                 foreach (var item in NaniteConstructionManager.NaniteBlocks)
                 {
                     if (item.Key == target.EntityId)
@@ -142,7 +148,7 @@ namespace NaniteConstructionSystem.Entities
         }
 
         // HandleCancelTarget
-        private void HandleCancelTarget(byte[] data)
+        private void HandleCancelTarget(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             try
             {
@@ -153,6 +159,7 @@ namespace NaniteConstructionSystem.Entities
                     return;
 
                 TargetData target = MyAPIGateway.Utilities.SerializeFromXML<TargetData>(ASCIIEncoding.ASCII.GetString(data));
+                NaniteConstructionManager.VerifyBlocks();
                 foreach (var item in NaniteConstructionManager.NaniteBlocks)
                 {
                     if (item.Key == target.EntityId)
@@ -165,7 +172,7 @@ namespace NaniteConstructionSystem.Entities
             }
         }
 
-        private void HandleDetails(byte[] data)
+        private void HandleDetails(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             MyAPIGateway.Parallel.Start(() =>
             {
@@ -182,6 +189,7 @@ namespace NaniteConstructionSystem.Entities
                     if (details == null)
                         return;
                     //Logging.Instance.WriteLine(string.Format("HandleDetails: {0}", details.EntityId));
+                    NaniteConstructionManager.VerifyBlocks();
 
                     foreach (var item in NaniteConstructionManager.NaniteBlocks)
                         if (item.Key == details.EntityId && item.Value.Initialized)
@@ -199,7 +207,7 @@ namespace NaniteConstructionSystem.Entities
             
         }
 
-        private void HandleFactoryGroup(byte[] data)
+        private void HandleFactoryGroup(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             MyAPIGateway.Parallel.Start(() =>
             {
@@ -212,6 +220,7 @@ namespace NaniteConstructionSystem.Entities
                         return;
 
                     FactoryGroupData details = MyAPIGateway.Utilities.SerializeFromXML<FactoryGroupData>(ASCIIEncoding.ASCII.GetString(data));
+                    NaniteConstructionManager.VerifyBlocks();
 
                     foreach (var item in NaniteConstructionManager.NaniteBlocks)
                         if (item.Key == details.EntityId && item.Value.Initialized)
@@ -245,19 +254,19 @@ namespace NaniteConstructionSystem.Entities
 
             SerializableKeyValuePair<long, NaniteTerminalSettings> settings = new SerializableKeyValuePair<long, NaniteTerminalSettings>(blockId, NaniteConstructionManager.TerminalSettings[blockId]);
 
-            if (Sync.IsClient)
+            if (Sync.IsServer)
             {
-                Logging.Instance.WriteLine("SendTerminalSettings -> Server", 2);
-                MyAPIGateway.Multiplayer.SendMessageToServer(8964, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML(settings)));
-            }
-            else if (Sync.IsServer)
-            {
-                Logging.Instance.WriteLine("SendTerminalSettings -> Others", 2);
+                Logging.Instance.WriteLine("SendTerminalSettings -> Others", 0);
                 MyAPIGateway.Multiplayer.SendMessageToOthers(8960, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML(settings)));
+            }
+            else if (Sync.IsClient)
+            {
+                Logging.Instance.WriteLine("SendTerminalSettings -> Server", 0);
+                MyAPIGateway.Multiplayer.SendMessageToServer(8964, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML(settings)));
             }
         }
 
-        private void HandleTerminalSettings(byte[] data)
+        private void HandleTerminalSettings(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             Logging.Instance.WriteLine("HandleTerminalSettings", 2);
 
@@ -289,17 +298,29 @@ namespace NaniteConstructionSystem.Entities
         public void SendAssemblerSettings(long blockId)
         {
             if (!NaniteConstructionManager.AssemblerSettings.ContainsKey(blockId))
+            {
+                Logging.Instance.WriteLine($"Nanite[SendAssemblerSettings({blockId})]: AssemblerSettings doesn't contain {blockId}, adding defaults...");
                 NaniteConstructionManager.AssemblerSettings.Add(blockId, new NaniteAssemblerSettings());
+            }
 
+            Logging.Instance.WriteLine($"Nanite[SendAssemblerSettings({blockId})]: Serializing before sending to client");
             SerializableKeyValuePair<long, NaniteAssemblerSettings> settings = new SerializableKeyValuePair<long, NaniteAssemblerSettings>(blockId, NaniteConstructionManager.AssemblerSettings[blockId]);
 
-            if (Sync.IsClient)
-                MyAPIGateway.Multiplayer.SendMessageToServer(8965, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML(settings)));
-            else if (Sync.IsServer)
+            Logging.Instance.WriteLine($"Nanite[SendAssemblerSettings({blockId})]: Serialized successfully!");
+
+            if (Sync.IsServer)
+            {
+                Logging.Instance.WriteLine($"Nanite[SendAssemblerSettings({blockId})]: Sending AssemblerSettings to all clients");
                 MyAPIGateway.Multiplayer.SendMessageToOthers(8962, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML(settings)));
+            }
+            else if (Sync.IsClient)
+            {
+                Logging.Instance.WriteLine($"Nanite[SendAssemblerSettings({blockId})]: Sending updated AssemblerSettings to the server");
+                MyAPIGateway.Multiplayer.SendMessageToServer(8965, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML(settings)));
+            }
         }
 
-        private void HandleAssemblerSettings(byte[] data)
+        private void HandleAssemblerSettings(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             try
             {
@@ -321,19 +342,27 @@ namespace NaniteConstructionSystem.Entities
             }
         }
 
-        private void HandleNeedTerminalSettings(byte[] data)
+        private void HandleNeedTerminalSettings(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             try
             {
+                Logging.Instance.WriteLine($"Nanite[TerminalSettings]: Received TerminalSettings request from SteamId64#{steamId}...");
                 if (MyAPIGateway.Session == null)
                     return;
 
-                var settings = MyAPIGateway.Utilities.SerializeFromXML<long>(ASCIIEncoding.ASCII.GetString(data));
+                Logging.Instance.WriteLine($"Nanite[TerminalSettings]: Unserializing...");
+
+                var blockId = MyAPIGateway.Utilities.SerializeFromXML<long>(ASCIIEncoding.ASCII.GetString(data));
+
+                Logging.Instance.WriteLine($"Nanite[TerminalSettings]: Received TerminalSettings request from SteamId64#{steamId} for BlockId#{blockId}...");
+
+                NaniteConstructionManager.VerifyBlocks();
                 foreach (var item in NaniteConstructionManager.NaniteBlocks)
                 {
-                    if (item.Key == settings)
+                    if (item.Key == blockId)
                     {
-                        SendTerminalSettings(settings);
+                        Logging.Instance.WriteLine($"Nanite[TerminalSettings]: Found block!");
+                        SendTerminalSettings(blockId);
                         break;
                     }
                 }
@@ -347,24 +376,39 @@ namespace NaniteConstructionSystem.Entities
         public void SendNeedTerminalSettings(long blockId)
         {
             if (MyAPIGateway.Multiplayer == null)
+            {
+                Logging.Instance.WriteLine($"Nanite: ERR Requesting TerminalSettings for EntityId#{blockId} as we're not in multiplayer...");
                 return;
+            }
 
-            MyAPIGateway.Multiplayer.SendMessageToServer(8961, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML(blockId)));
+            if (Sync.IsServer)
+            {
+                Logging.Instance.WriteLine($"Nanite: ERR Requesting AssemblerSettings for EntityId#{blockId} as we're the server!");
+                return;
+            }
+
+            Logging.Instance.WriteLine($"Nanite: Requesting TerminalSettings for EntityId#{blockId}...");
+            MyAPIGateway.Multiplayer.SendMessageToServer(8961, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML<long>(blockId)));
         }
 
-        private void HandleNeedAssemblerSettings(byte[] data)
+        private void HandleNeedAssemblerSettings(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             try
             {
+                Logging.Instance.WriteLine($"Nanite[AssemblerSettings]: Received AssemblerSettings request from SteamId64#{steamId}...");
                 if (MyAPIGateway.Session == null)
                     return;
 
-                var settings = MyAPIGateway.Utilities.SerializeFromXML<long>(ASCIIEncoding.ASCII.GetString(data));
+                Logging.Instance.WriteLine($"Nanite[AssemblerSettings]: Unserializing...");
+
+                var blockId = MyAPIGateway.Utilities.SerializeFromXML<long>(ASCIIEncoding.ASCII.GetString(data));
+                Logging.Instance.WriteLine($"Nanite[AssemblerSettings]: Received AssemblerSettings request from SteamId64#{steamId} for BlockId#{blockId}...");
                 foreach (var item in NaniteConstructionManager.AssemblerBlocks)
                 {
-                    if (item.Key == settings)
+                    if (item.Key == blockId)
                     {
-                        SendAssemblerSettings(settings);
+                        Logging.Instance.WriteLine($"Nanite[TerminalSettings]: Found block!");
+                        SendAssemblerSettings(blockId);
                         break;
                     }
                 }
@@ -379,7 +423,16 @@ namespace NaniteConstructionSystem.Entities
         public void SendNeedAssemblerSettings(long blockId)
         {
             if (MyAPIGateway.Multiplayer == null)
+            {
+                Logging.Instance.WriteLine($"Nanite: ERR Requesting AssemblerSettings for EntityId#{blockId} as we're not in multiplayer...");
                 return;
+            }
+
+            if (Sync.IsServer)
+            {
+                Logging.Instance.WriteLine($"Nanite: ERR Requesting AssemblerSettings for EntityId#{blockId} as we're the server!");
+                return;
+            }
 
             Logging.Instance.WriteLine($"Requesting Assembler Settings -> {blockId}", 2);
             MyAPIGateway.Multiplayer.SendMessageToServer(8963, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML(blockId)));
@@ -392,21 +445,20 @@ namespace NaniteConstructionSystem.Entities
 
             SerializableKeyValuePair<long, NaniteBeaconTerminalSettings> settings = new SerializableKeyValuePair<long, NaniteBeaconTerminalSettings>(blockId, NaniteConstructionManager.BeaconTerminalSettings[blockId]);
 
-            if (Sync.IsClient)
+            if (Sync.IsServer)
+            {
+                Logging.Instance.WriteLine("SendAssemblerSettings -> Others", 2);
+                Logging.Instance.WriteLine($"SendBeaconTerminalSettings -> Client: {blockId}", 1);
+                MyAPIGateway.Multiplayer.SendMessageToOthers(8971, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML(settings)));
+            } else if (Sync.IsClient)
             {
                 Logging.Instance.WriteLine("SendAssemblerSettings -> Server", 2);
                 Logging.Instance.WriteLine($"SendBeaconTerminalSettings -> Server: {blockId}", 1);
                 MyAPIGateway.Multiplayer.SendMessageToServer(8972, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML(settings)));
             }
-            else if (Sync.IsServer)
-            {
-                Logging.Instance.WriteLine("SendAssemblerSettings -> Others", 2);
-                Logging.Instance.WriteLine($"SendBeaconTerminalSettings -> Client: {blockId}", 1);
-                MyAPIGateway.Multiplayer.SendMessageToOthers(8971, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML(settings)));
-            }
         }
 
-        private void HandleBeaconTerminalSettings(byte[] data)
+        private void HandleBeaconTerminalSettings(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             try
             {
@@ -432,13 +484,22 @@ namespace NaniteConstructionSystem.Entities
         public void SendNeedBeaconTerminalSettings(long blockId)
         {
             if (MyAPIGateway.Multiplayer == null)
+            {
+                Logging.Instance.WriteLine($"Nanite: ERR Requesting BeaconTerminalSettings for EntityId#{blockId} as we're not in multiplayer...");
                 return;
+            }
+
+            if (Sync.IsServer)
+            {
+                Logging.Instance.WriteLine($"Nanite: ERR Requesting AssemblerSettings for EntityId#{blockId} as we're the server!");
+                return;
+            }
 
             Logging.Instance.WriteLine($"SendNeedBeaconTerminalSettings: {blockId}", 1);
             MyAPIGateway.Multiplayer.SendMessageToServer(8973, ASCIIEncoding.ASCII.GetBytes(MyAPIGateway.Utilities.SerializeToXML(blockId)));
         }
 
-        private void HandleNeedBeaconTerminalSettings(byte[] data)
+        private void HandleNeedBeaconTerminalSettings(ushort channelId, byte[] data, ulong steamId, bool fromServer)
         {
             try
             {

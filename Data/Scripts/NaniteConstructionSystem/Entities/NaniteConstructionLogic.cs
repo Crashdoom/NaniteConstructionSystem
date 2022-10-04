@@ -8,7 +8,7 @@ using Sandbox.Game.Entities;
 
 namespace NaniteConstructionSystem.Entities
 {
-    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_ShipWelder), true, "LargeNaniteControlFacility", "SmallNaniteControlFacility")]
+    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_ShipWelder), false, "LargeNaniteControlFacility", "SmallNaniteControlFacility")]
     public class LargeControlFacilityLogic : MyGameLogicComponent
     {
         private NaniteConstructionBlock m_block = null;
@@ -22,24 +22,10 @@ namespace NaniteConstructionSystem.Entities
 
         public override void UpdateOnceBeforeFrame()
         {
+            Logging.Instance.WriteLine($"[Nanite] Creating LargeControlFacility...");
             try {
                 base.UpdateOnceBeforeFrame();
-
-                m_block = new NaniteConstructionBlock(Entity);
-
-                if (!NaniteConstructionManager.NaniteBlocks.ContainsKey(Entity.EntityId))
-                    NaniteConstructionManager.NaniteBlocks.Add(Entity.EntityId, m_block);
-
-                m_block.UpdateCount += NaniteConstructionManager.NaniteBlocks.Count * 30;
-                // Adds some gap between factory processing so they don't all process their targets at once.
-
-                IMySlimBlock slimBlock = ((MyCubeBlock)m_block.ConstructionBlock).SlimBlock as IMySlimBlock;
-                Logging.Instance.WriteLine(string.Format("ADDING Nanite Factory: conid={0} physics={1} ratio={2}",
-                  Entity.EntityId, m_block.ConstructionBlock.CubeGrid.Physics == null, slimBlock.BuildLevelRatio), 1);
-
-                if (NaniteConstructionManager.NaniteSync != null)
-                    NaniteConstructionManager.NaniteSync.SendNeedTerminalSettings(Entity.EntityId);
-
+                m_block = NaniteConstructionManager.CreateNaniteFactory(Entity);
             } catch(Exception exc) {
                 MyLog.Default.WriteLineAndConsole($"##MOD: Nanites UpdateOnceBeforeFrame, ERROR: {exc}");
             }
@@ -48,9 +34,11 @@ namespace NaniteConstructionSystem.Entities
         public override void UpdateBeforeSimulation()
         {
             try
-                {m_block.Update();}
+            {
+                m_block.Update();
+            }
             catch (System.Exception e)
-                { Logging.Instance.WriteLine($"LargeControlFacilityLogic.UpdateBeforeSimulation Exception: {e.ToString()}"); }
+                { Logging.Instance.WriteLine($"LargeControlFacilityLogic.UpdateBeforeSimulation Exception: {e}"); }
         }
 
         public override void Close()
@@ -66,7 +54,7 @@ namespace NaniteConstructionSystem.Entities
         }
     }
 
-    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_Projector), true)]
+    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_Projector), false)]
     public class NaniteProjectorLogic : MyGameLogicComponent
     {
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
@@ -95,7 +83,7 @@ namespace NaniteConstructionSystem.Entities
         }
     }
 
-    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_Assembler), true)]
+    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_Assembler), false)]
     public class NaniteAssemblerLogic : MyGameLogicComponent
     {
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
