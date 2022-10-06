@@ -103,7 +103,8 @@ namespace NaniteConstructionSystem.Entities.Targets
 
         internal void CheckConstructionOrProjectionAreaBeacons(bool isProjection = false)
         {
-            foreach (var beaconBlock in NaniteConstructionManager.BeaconList.Where(x => x.Value is NaniteAreaBeacon).ToList())
+            var beacons = NaniteConstructionManager.BeaconList.Where(x => x.Value is NaniteAreaBeacon).ToList();
+            foreach (var beaconBlock in beacons)
             {
                 IMyCubeBlock cubeBlock = beaconBlock.Value.BeaconBlock;
 
@@ -127,8 +128,9 @@ namespace NaniteConstructionSystem.Entities.Targets
 
                     if (grid == null || (grid.GetPosition() - cubeBlock.GetPosition()).LengthSquared() >= range * range)
                         continue;
-                        
-                    foreach (IMySlimBlock block in ((MyCubeGrid)grid).GetBlocks())
+
+                    var gridBlocks = ((MyCubeGrid)grid).GetBlocks();
+                    foreach (IMySlimBlock block in gridBlocks)
                     {
                         BoundingBoxD blockbb;
                         block.GetWorldBoundingBox(out blockbb, true);

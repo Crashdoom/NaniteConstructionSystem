@@ -329,8 +329,10 @@ namespace NaniteConstructionSystem.Entities.Targets
 					continue;
 
                 List<IMySlimBlock> beaconBlocks = new List<IMySlimBlock>();
+                List<IMyCubeGrid> beaconGrids = new List<IMyCubeGrid>();
+                MyAPIGateway.GridGroups.GetGroup((IMyCubeGrid)item.CubeGrid, GridLinkTypeEnum.Physical, beaconGrids);
 
-                foreach (var grid in MyAPIGateway.GridGroups.GetGroup((IMyCubeGrid)item.CubeGrid, GridLinkTypeEnum.Physical))
+                foreach (var grid in beaconGrids)
                     grid.GetBlocks(beaconBlocks);
 
                 foreach (var block in beaconBlocks)
@@ -414,8 +416,8 @@ namespace NaniteConstructionSystem.Entities.Targets
 
                         // no defined owner
                         if (ownerId == 0) {
-                            if (block.CubeGrid != null && block.CubeGrid.BigOwners[0] != null) {
-                                ownerId = block.CubeGrid.BigOwners[0];
+                            if (block.CubeGrid != null && block.CubeGrid.BigOwners.Count >= 1) {
+                                ownerId = block.CubeGrid.BigOwners.First();
                             }
 
                             if (ownerId == 0 && localBlockBuiltBy != null && localBlockBuiltBy.BuiltBy != null) {

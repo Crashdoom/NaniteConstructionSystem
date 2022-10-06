@@ -345,8 +345,8 @@ namespace NaniteConstructionSystem.Entities.Targets
 
             // no defined owner
             if (ownerId == 0) {
-                if (obj != null && obj.CubeGrid != null && obj.CubeGrid.BigOwners[0] != null) {
-                    ownerId = obj.CubeGrid.BigOwners[0];
+                if (obj != null && obj.CubeGrid != null && obj.CubeGrid.BigOwners.Count >= 1) {
+                    ownerId = obj.CubeGrid.BigOwners.First();
                 }
 
                 if (ownerId == 0 && localBlockBuiltBy != null && localBlockBuiltBy.BuiltBy != null) {
@@ -405,17 +405,17 @@ namespace NaniteConstructionSystem.Entities.Targets
             CompleteTarget(target);
         }
 
-        public override void ParallelUpdate(List<IMyCubeGrid> gridList, List<BlockTarget> blocks)
+        public override void ParallelUpdate(List<IMyCubeGrid> gridList, List<BlockTarget> blocksToScan)
         {
-            foreach (var block in blocks.ToList())
+            foreach (var block in blocksToScan.ToList())
             {
                 if (block == null)
                     continue;
 
-                if (block.IsRemote && AddPotentialBlock(block.Block, true))
+                var addedBlock = AddPotentialBlock(block.Block, block.IsRemote, block.IsRemote ? null : block.AreaBeacon);
+
+                if (block.IsRemote && addedBlock)
                     m_remoteTargets.Add(block.Block);
-                else
-                    AddPotentialBlock(block.Block, block.IsRemote, block.AreaBeacon);
             }
         }
 
@@ -423,8 +423,12 @@ namespace NaniteConstructionSystem.Entities.Targets
         {
             m_remoteTargets.Clear();
 
+            var beacons = NaniteConstructionManager.BeaconList
+                .ToList()
+                .Where(x => (x.Value is NaniteBeaconConstruct || x.Value is NaniteBeaconProjection));
+
             // Find beacons in range
-            foreach (var beaconBlock in (NaniteConstructionManager.BeaconList.ToList()).Where(x => (x.Value is NaniteBeaconConstruct || x.Value is NaniteBeaconProjection)))
+            foreach (var beaconBlock in beacons)
             {
                 var item = beaconBlock.Value.BeaconBlock;
 
@@ -433,7 +437,7 @@ namespace NaniteConstructionSystem.Entities.Targets
                   || !IsInRange(item.GetPosition(), m_maxDistance) )
                     continue;
 
-                GetBeaconBlocks((IMyCubeGrid)item.CubeGrid);
+                GetBeaconBlocks(item.CubeGrid);
                 GetBeaconBlocksRetryCounter = 0;
 
                 foreach (var block in beaconBlocks)
@@ -446,10 +450,12 @@ namespace NaniteConstructionSystem.Entities.Targets
             try
             {
                 beaconBlocks.Clear();
-                foreach (var grid in MyAPIGateway.GridGroups.GetGroup(BeaconBlockGrid, GridLinkTypeEnum.Physical))
+                List<IMyCubeGrid> connectedGrids = new List<IMyCubeGrid>();
+                MyAPIGateway.GridGroups.GetGroup(BeaconBlockGrid, GridLinkTypeEnum.Physical, connectedGrids);
+                foreach (var grid in connectedGrids)
                     grid.GetBlocks(beaconBlocks);
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException)
             {
                 if (GetBeaconBlocksRetryCounter++ > 60)
                 {

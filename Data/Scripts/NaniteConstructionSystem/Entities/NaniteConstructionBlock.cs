@@ -632,7 +632,7 @@ namespace NaniteConstructionSystem.Entities
                             targetDetailsParallel.Append("-----\r\n"
                               + $"{item.TargetName} Nanites\r\n"
                               + "-----\r\n"
-                              + $"Possible Targets: {item.PotentialTargetListCount}\r\n"
+                              + $"Potential Targets: {item.PotentialTargetListCount}\r\n"
                               + $"Current Targets: {item.TargetList.Count}\r\n"
                               + $"Max Streams: {item.GetMaximumTargets()}\r\n" // TO DO: Retrieve a cached value for these instead of invoking a method
                               + $"MW/Stream: {item.GetPowerUsage()} MW\r\n"
@@ -676,6 +676,13 @@ namespace NaniteConstructionSystem.Entities
 
                 details.Append("-- Nanite Factory v2.0 --\n");
                 details.Append($"# {m_entityId}\n");
+
+                if (Master == null && Slaves?.Count == 0)
+                    details.Append("Mode: Single Factory / Independent\n");
+                else if (Master != null)
+                    details.Append($"Mode: Cooperative, Worker (Primary #{Master.EntityId}\n");
+                else
+                    details.Append($"Mode: Cooperative, Primary (Workers: {Slaves?.Count ?? 0})\n");
 
                 if (m_overLimit) {
                     details.Append("-- PCU / blocks limit reached --\n");
@@ -963,11 +970,13 @@ namespace NaniteConstructionSystem.Entities
                 try
                 {
                     List<IMyCubeGrid> removalList = new List<IMyCubeGrid>();
-                    List<IMyCubeGrid> newGroup = new List<IMyCubeGrid>(MyAPIGateway.GridGroups.GetGroup((IMyCubeGrid)m_constructionCubeBlock.CubeGrid, GridLinkTypeEnum.Physical));
+                    List<IMyCubeGrid> newGroup = new List<IMyCubeGrid>();
+                    MyAPIGateway.GridGroups.GetGroup(m_constructionCubeBlock.CubeGrid, GridLinkTypeEnum.Physical, newGroup);
 
                     foreach (var slave in Slaves)
                     {
-                        List<IMyCubeGrid> slaveGroup = new List<IMyCubeGrid>(MyAPIGateway.GridGroups.GetGroup((IMyCubeGrid)slave.ConstructionCubeBlock.CubeGrid, GridLinkTypeEnum.Physical));
+                        List<IMyCubeGrid> slaveGroup = new List<IMyCubeGrid>();
+                        MyAPIGateway.GridGroups.GetGroup(slave.ConstructionCubeBlock.CubeGrid, GridLinkTypeEnum.Physical, slaveGroup);
                         foreach (var grid in slaveGroup)
                             if (!newGroup.Contains(grid))
                                 newGroup.Add(grid);
@@ -1272,18 +1281,17 @@ namespace NaniteConstructionSystem.Entities
         {
             try
             {
-                if (m_scanBlocksCache.Count < 1)
+                if (m_scanBlocksCache.Count == 0)
                 {
                     m_totalScanBlocksCount = 0;
 
                     foreach (var factory in FactoryGroup)
-                        PotentialTargetsCount = 0;
+                        factory.PotentialTargetsCount = 0;
 
                     List<IMySlimBlock> newGridBlocks = new List<IMySlimBlock>();
 
                     MyAPIGateway.Utilities.InvokeOnGameThread(() =>
                         { InventoryManager.ComponentsRequired.Clear(); });
-
 
                     foreach (var target in m_targets)
                     {
@@ -1300,7 +1308,7 @@ namespace NaniteConstructionSystem.Entities
                     foreach (IMyCubeGrid grid in GridGroup)
                         grid.GetBlocks(newGridBlocks);
 
-                    if (m_potentialInventoryBlocks.Count < 1)
+                    if (m_potentialInventoryBlocks.Count == 0)
                     {
                         if (m_initInventory)
                             m_initInventory = false;
@@ -1317,28 +1325,28 @@ namespace NaniteConstructionSystem.Entities
                         m_scanBlocksCache.Add(new BlockTarget(block));
 
                     foreach (var factory in FactoryGroup)
-                        TotalScanBlocksCount = m_scanBlocksCache.Count;
+                        factory.TotalScanBlocksCount = m_scanBlocksCache.Count;
                 }
-
-                int counter = 0;
-                List<BlockTarget> blocksToGo = new List<BlockTarget>();
 
                 int maxBlocksToScan = NaniteConstructionManager.Settings != null ? NaniteConstructionManager.Settings.BlocksScannedPerSecond : 500;
+                List<BlockTarget> blocksToScan = new List<BlockTarget>();
 
+                // Add up to maxBlocksToScan to blocksToGo for processing in this iteration
                 foreach (var block in m_scanBlocksCache)
                 {
-                    if (counter++ > (maxBlocksToScan))
-                        break;
+                    blocksToScan.Add(block);
 
-                    blocksToGo.Add(block);
+                    if (blocksToScan.Count >= maxBlocksToScan)
+                        break;
                 }
 
-                foreach (var block in blocksToGo)
-                    m_scanBlocksCache.Remove(block);
+                // Remove any blocks we're scanning from the scan list
+                foreach (var scanBlock in blocksToScan)
+                    m_scanBlocksCache.Remove(scanBlock);
 
                 foreach (var item in m_targets)
                     if (!(item is NaniteDeconstructionTargets))
-                        item.ParallelUpdate(GridGroup, blocksToGo);
+                        item.ParallelUpdate(GridGroup, blocksToScan);
             }
             catch (InvalidOperationException e)
             {
@@ -1358,15 +1366,19 @@ namespace NaniteConstructionSystem.Entities
         { // Processes found targets by the factory and also moves inventory. Processed mostly in parallel
             try
             {
+                // TODO: Move to new function
                 Dictionary<string, int> availableComponents = new Dictionary<string, int>();
+                // Retrieve the total number of components we have access to
                 InventoryManager.GetAvailableComponents(ref availableComponents);
 
+                // Subtract the total number of all components allocated to existing construction / projection targets
                 foreach (var item in m_targets.ToList())
                     if (item is NaniteConstructionTargets || item is NaniteProjectionTargets)
                         InventoryManager.SubtractAvailableComponents(item.TargetList.Cast<IMySlimBlock>().ToList(), ref availableComponents, item is NaniteProjectionTargets);
 
                 var factoryBlockList = NaniteConstructionManager.GetConstructionBlocks((IMyCubeGrid)ConstructionBlock.CubeGrid);
 
+                // Find new targets with the remaining unallocated components available
                 foreach (var item in m_targets.ToList())
                 {
                     m_potentialTargetsCount += item.PotentialTargetList.Count;
@@ -1377,19 +1389,28 @@ namespace NaniteConstructionSystem.Entities
 
                     item.FindTargets(ref availableComponents, factoryBlockList);
                 }
+                // END: Function
 
+                // Retrieve a list of all components available to us
                 availableComponents = new Dictionary<string, int>();
                 InventoryManager.GetAvailableComponents(ref availableComponents);
 
-                foreach (var item in m_targets.ToList())
-                    if ((item is NaniteConstructionTargets) || (item is NaniteProjectionTargets))
-                        InventoryManager.SubtractAvailableComponents(item.TargetList.Cast<IMySlimBlock>().ToList(), ref availableComponents, item is NaniteProjectionTargets);
+                //foreach (var item in m_targets.ToList())
+                //    if ((item is NaniteConstructionTargets) || (item is NaniteProjectionTargets))
+                //        InventoryManager.SubtractAvailableComponents(item.TargetList.Cast<IMySlimBlock>().ToList(), ref availableComponents, item is NaniteProjectionTargets);
+
+                var shouldUseAssemblers = !NaniteConstructionManager.TerminalSettings[m_constructionBlock.EntityId].UseAssemblers;
 
                 foreach (var item in m_targets.ToList())
                     if ((item is NaniteConstructionTargets) || (item is NaniteProjectionTargets))
-                        InventoryManager.SetupRequiredComponents(item.TargetList.Cast<IMySlimBlock>().ToList(),
-                          item.PotentialTargetList.Cast<IMySlimBlock>().ToList(), item.GetMaximumTargets(),
-                          ref availableComponents, item is NaniteProjectionTargets);
+                        InventoryManager.SetupRequiredComponents(
+                            item.TargetList.Cast<IMySlimBlock>().ToList(),
+                            item.PotentialTargetList.Cast<IMySlimBlock>().ToList(),
+                            item.GetMaximumTargets(),
+                            ref availableComponents,
+                            item is NaniteProjectionTargets,
+                            shouldUseAssemblers
+                        );
             }
             catch (InvalidOperationException e)
             {
@@ -1880,7 +1901,7 @@ namespace NaniteConstructionSystem.Entities
                 }
                 else if (data.TargetType == TargetTypes.Voxel)
                 {
-                    var target = GetTarget<NaniteMiningTargets>().TargetList.FirstOrDefault(x => ((NaniteMiningItem)x).Position == new Vector3D(data.PositionD.X, data.PositionD.Y, data.PositionD.Z)) as NaniteMiningItem;
+                    var target = GetTarget<NaniteMiningTargets>().TargetList.FirstOrDefault(x => ((NaniteMiningItem)x)?.Position == new Vector3D(data.PositionD.X, data.PositionD.Y, data.PositionD.Z)) as NaniteMiningItem;
                     if (target != null)
                         GetTarget<NaniteMiningTargets>().CompleteTarget(target);
 
@@ -1889,7 +1910,7 @@ namespace NaniteConstructionSystem.Entities
                 else if (data.TargetType == TargetTypes.Deconstruction)
                 {
                     foreach (IMySlimBlock item in GetTarget<NaniteDeconstructionTargets>().TargetList.ToList())
-                        if (item.CubeGrid.EntityId == data.TargetId && item.Position == new Vector3I(data.PositionI.X, data.PositionI.Y, data.PositionI.Z))
+                        if (item?.CubeGrid?.EntityId == data.TargetId && item?.Position == new Vector3I(data.PositionI.X, data.PositionI.Y, data.PositionI.Z))
                         {
                             GetTarget<NaniteDeconstructionTargets>().CompleteTarget(item);
                             return;
@@ -1901,7 +1922,7 @@ namespace NaniteConstructionSystem.Entities
                 else if (data.TargetType == TargetTypes.Projection)
                 {
                     foreach (IMySlimBlock item in GetTarget<NaniteProjectionTargets>().TargetList.ToList())
-                        if (item.Position == new Vector3I(data.PositionI.X, data.PositionI.Y, data.PositionI.Z) && NaniteProjectionTargets.GetProjectorByBlock(item) == data.TargetId)
+                        if (item?.Position == new Vector3I(data.PositionI.X, data.PositionI.Y, data.PositionI.Z) && NaniteProjectionTargets.GetProjectorByBlock(item) == data.TargetId)
                         {
                             GetTarget<NaniteProjectionTargets>().CompleteTarget(item);
                             return;
@@ -1911,7 +1932,7 @@ namespace NaniteConstructionSystem.Entities
                 IMySlimBlock block = null;
                 Vector3I position = new Vector3I(data.PositionI.X, data.PositionI.Y, data.PositionI.Z);
 
-                block = GetTarget<NaniteConstructionTargets>().TargetList.FirstOrDefault(x => ((IMySlimBlock)x).Position == position && ((IMySlimBlock)x).CubeGrid.EntityId == data.TargetId) as IMySlimBlock;
+                block = GetTarget<NaniteConstructionTargets>().TargetList.FirstOrDefault(x => ((IMySlimBlock)x)?.Position == position && ((IMySlimBlock)x)?.CubeGrid?.EntityId == data.TargetId) as IMySlimBlock;
                 if (block != null)
                 {
                     GetTarget<NaniteConstructionTargets>().CompleteTarget(block);

@@ -197,7 +197,7 @@ namespace NaniteConstructionSystem.Entities.Targets
         {
             foreach (var beaconBlock in NaniteConstructionManager.BeaconList.Where(x => x.Value is NaniteAreaBeacon).ToList())
             {
-                IMyCubeBlock cubeBlock = (IMyCubeBlock)beaconBlock.Value.BeaconBlock;
+                IMyCubeBlock cubeBlock = beaconBlock.Value.BeaconBlock;
 
 			    if (!IsAreaBeaconValid(cubeBlock))
                     continue;
@@ -512,7 +512,9 @@ namespace NaniteConstructionSystem.Entities.Targets
         private int GetGridGroupBlockCount(IMyCubeGrid grid)
         {
             int count = 0;
-            foreach (var item in MyAPIGateway.GridGroups.GetGroup(grid, GridLinkTypeEnum.Physical))
+            List<IMyCubeGrid> gridGroups = new List<IMyCubeGrid>();
+            MyAPIGateway.GridGroups.GetGroup(grid, GridLinkTypeEnum.Physical, gridGroups);
+            foreach (var item in gridGroups)
                 count += ((MyCubeGrid)item).GetBlocks().Count;
 
             return count;
@@ -520,10 +522,13 @@ namespace NaniteConstructionSystem.Entities.Targets
 
         private long GetGridGroupOwner(IMyCubeGrid grid)
         {
-            if(grid.BigOwners.Count > 0)
+            if (grid.BigOwners.Count > 0)
                 return grid.BigOwners.First();
 
-            foreach (IMyCubeGrid item in MyAPIGateway.GridGroups.GetGroup(grid, GridLinkTypeEnum.Physical))
+            List<IMyCubeGrid> gridGroups = new List<IMyCubeGrid>();
+            MyAPIGateway.GridGroups.GetGroup(grid, GridLinkTypeEnum.Physical, gridGroups);
+
+            foreach (IMyCubeGrid item in gridGroups)
                 if (item.BigOwners.Count > 0)
                     return item.BigOwners.First();
 
@@ -580,7 +585,14 @@ namespace NaniteConstructionSystem.Entities.Targets
         private void CreateGridStack(List<IMyCubeGrid> NaniteGridGroup, NaniteDeconstructionGrid deconstruct, MyCubeGrid grid, MyCubeBlock beacon)
         {
             DateTime start = DateTime.Now;
-            IMyCubeGrid mainGrid = MyAPIGateway.GridGroups.GetGroup((IMyCubeGrid)grid, GridLinkTypeEnum.Physical).SkipWhile(x => NaniteGridGroup.Contains(x)).OrderByDescending(x => ((MyCubeGrid)x).GetBlocks().Count).FirstOrDefault();
+
+            List<IMyCubeGrid> grids = new List<IMyCubeGrid>();
+            MyAPIGateway.GridGroups.GetGroup((IMyCubeGrid)grid, GridLinkTypeEnum.Physical, grids);
+
+            IMyCubeGrid mainGrid = grids
+                .SkipWhile(x => NaniteGridGroup.Contains(x))
+                .OrderByDescending(x => ((MyCubeGrid)x).GetBlocks().Count)
+                .FirstOrDefault();
 
             if (mainGrid == null)
                 return;
@@ -648,7 +660,10 @@ namespace NaniteConstructionSystem.Entities.Targets
 
         private void FindPriorityBlocks(NaniteDeconstructionGrid deconstruct, IMySlimBlock startBlock)
         {
-            foreach (var grid in MyAPIGateway.GridGroups.GetGroup(startBlock.CubeGrid, GridLinkTypeEnum.Physical))
+            List<IMyCubeGrid> grids = new List<IMyCubeGrid>();
+            MyAPIGateway.GridGroups.GetGroup(startBlock.CubeGrid, GridLinkTypeEnum.Physical, grids);
+
+            foreach (var grid in grids)
             {
                 List<IMySlimBlock> blocks = new List<IMySlimBlock>();
                 grid.GetBlocks(blocks);

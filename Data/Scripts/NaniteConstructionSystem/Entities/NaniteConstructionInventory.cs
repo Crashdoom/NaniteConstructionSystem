@@ -1,28 +1,14 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
-using System.Text;
 using System.Linq;
 using Sandbox.Game;
-using Sandbox.Game.Entities;
-using Sandbox.Game.EntityComponents;
 using Sandbox.ModAPI;
-using VRage;
 using VRage.Game;
-using VRage.Game.Components;
 using VRage.Game.Entity;
-using VRage.Game.ObjectBuilders.ComponentSystem;
-using VRage.ModAPI;
-using VRageMath;
-using VRage.Utils;
 using VRage.ObjectBuilders;
-using Ingame = VRage.Game.ModAPI.Ingame;
 using VRage.Game.ModAPI;
 using Sandbox.Definitions;
-
-using NaniteConstructionSystem.Particles;
 using NaniteConstructionSystem.Extensions;
-using NaniteConstructionSystem.Entities.Tools;
 
 namespace NaniteConstructionSystem.Entities
 {
@@ -54,7 +40,7 @@ namespace NaniteConstructionSystem.Entities
                 // there seems to be an issue when nanites are taking stuff from multiple inventories, they tend to
                 // overstuff themselves over their limit, which leads to the loss of shit. I have made this flag
                 // for testing purposes
-                // TODO: remove once better sollution is found
+                // TODO: remove once better solution is found
                 //var itemsMoved = false;
 
                 // go through inventories connected with the nanite control facility
@@ -134,7 +120,7 @@ namespace NaniteConstructionSystem.Entities
                     }
                 }
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException)
             {
                 Logging.Instance.WriteLine("NaniteConstructionSystem.Extensions.GridHelper.TryMoveToFreeCargo: A list was modified. Aborting.", 1);
             }
@@ -154,7 +140,7 @@ namespace NaniteConstructionSystem.Entities
             return remainingVolume / componentDef.Volume;
         }
 
-        internal void SetupRequiredComponents(List<IMySlimBlock> targetList, List<IMySlimBlock> possibleTargetList, int maxTargets, ref Dictionary<string, int> available, bool isProjection)
+        internal void SetupRequiredComponents(List<IMySlimBlock> targetList, List<IMySlimBlock> possibleTargetList, int maxTargets, ref Dictionary<string, int> available, bool isProjection, bool shouldUseAssemblers)
         {
             if (MyAPIGateway.Session.CreativeMode)
                 return;
@@ -182,6 +168,11 @@ namespace NaniteConstructionSystem.Entities
                         }
                     }
                 }
+
+                // If we're not supposed to use assemblers, there's no point in checking what components are required for
+                // blocks we're not actively targeting. Otherwise, we end up in a "MissingParts" loop.
+                if (!shouldUseAssemblers)
+                    return;
 
                 foreach (var item in possibleTargetList.ToList())
                 {
@@ -288,7 +279,7 @@ namespace NaniteConstructionSystem.Entities
             return result;
         }
 
-        internal void GetAvailableComponents(ref Dictionary<string, int> result)
+        internal void GetAvailableComponents(ref Dictionary<string, int> availableComponents)
         {
             if (MyAPIGateway.Session.CreativeMode)
                 return;
@@ -301,15 +292,15 @@ namespace NaniteConstructionSystem.Entities
                     if ((int)item.Amount < 1)
                         continue;
 
-                    if (!result.ContainsKey(item.Content.SubtypeName))
-                        result.Add(item.Content.SubtypeName, (int)item.Amount);
+                    if (!availableComponents.ContainsKey(item.Content.SubtypeName))
+                        availableComponents.Add(item.Content.SubtypeName, (int)item.Amount);
                     else
-                        result[item.Content.SubtypeName] += (int)item.Amount;
+                        availableComponents[item.Content.SubtypeName] += (int)item.Amount;
                 }
             }
         }
 
-        internal void SubtractAvailableComponents(List<IMySlimBlock> targetList, ref Dictionary<string, int> result, bool isProjection)
+        internal void SubtractAvailableComponents(List<IMySlimBlock> targetList, ref Dictionary<string, int> availableComponents, bool isProjection)
         {
             if (MyAPIGateway.Session.CreativeMode)
                 return;
@@ -320,16 +311,15 @@ namespace NaniteConstructionSystem.Entities
                 missing.Clear();
 
                 if (isProjection)
-                    item.GetMissingComponents(missing);
-                else
                 {
                     var missingName = GetProjectionComponents(item).First().Key;
                     missing.Add(missingName, 1);
-                }
+                } else
+                    item.GetMissingComponents(missing);
 
                 foreach (var component in missing)
-                    if (result.ContainsKey(component.Key))
-                        result[component.Key] -= component.Value;
+                    if (availableComponents.ContainsKey(component.Key))
+                        availableComponents[component.Key] -= component.Value;
             }
         }
 
