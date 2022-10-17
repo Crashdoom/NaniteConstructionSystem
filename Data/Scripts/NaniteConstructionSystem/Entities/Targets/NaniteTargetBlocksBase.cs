@@ -73,10 +73,17 @@ namespace NaniteConstructionSystem.Entities.Targets
 
         private float m_maxDistance = 300f;
 
-        public virtual void Remove(object target)
+        public virtual void Remove(object target, bool removePotentialTarget = true)
         {
             TargetList.Remove(target);
-            PotentialTargetList.Remove(target);
+            if (removePotentialTarget)
+                PotentialTargetList.Remove(target);
+        }
+
+        public void ClearTargets()
+        {
+            TargetList.Clear();
+            PotentialTargetList.Clear();
         }
 
         internal bool IsAreaBeaconValid(IMyCubeBlock cubeBlock)
@@ -104,12 +111,20 @@ namespace NaniteConstructionSystem.Entities.Targets
         internal void CheckConstructionOrProjectionAreaBeacons(bool isProjection = false)
         {
             var beacons = NaniteConstructionManager.BeaconList.Where(x => x.Value is NaniteAreaBeacon).ToList();
+            DebugSession.Instance.WriteLine($"NaniteConstructionTargets.CheckConstructionOrProjectionAreaBeacons: Found {beacons.Count} beacons to check.");
+
             foreach (var beaconBlock in beacons)
             {
                 IMyCubeBlock cubeBlock = beaconBlock.Value.BeaconBlock;
 
                 if (!IsAreaBeaconValid(cubeBlock))
+                {
+                    if (cubeBlock == null)
+                        DebugSession.Instance.WriteLine($"NaniteConstructionTargets.CheckConstructionOrProjectionAreaBeacons(null): cubeBlock was null?");
+                    else
+                        DebugSession.Instance.WriteLine($"NaniteConstructionTargets.CheckConstructionOrProjectionAreaBeacons({cubeBlock.EntityId}): Beacon {cubeBlock.DisplayName} is not valid.");
                     continue;
+                }
 
                 var item = beaconBlock.Value as NaniteAreaBeacon;
                 if ( (isProjection && !item.Settings.AllowProjection) || !item.Settings.AllowRepair)
@@ -120,22 +135,27 @@ namespace NaniteConstructionSystem.Entities.Targets
                 if (isProjection)
                     range = NaniteConstructionManager.Settings != null ? NaniteConstructionManager.Settings.ProjectionMaxBeaconDistance : 300f;
 
+                DebugSession.Instance.WriteLine($"NaniteConstructionTargets.CheckConstructionOrProjectionAreaBeacons({cubeBlock.EntityId}): Retrieving nearby entities...");
+
                 HashSet<IMyEntity> entities = new HashSet<IMyEntity>();
-                MyAPIGateway.Entities.GetEntities(entities);
+                MyAPIGateway.Entities.GetEntities(entities, grid => (
+                    grid != null && grid is IMyCubeGrid && (grid.GetPosition() - cubeBlock.GetPosition()).LengthSquared() < range * range
+                ));
+
+                DebugSession.Instance.WriteLine($"NaniteConstructionTargets.CheckConstructionOrProjectionAreaBeacons({cubeBlock.EntityId}): Found {entities.Count} grid(s) in range!");
+
                 foreach (var entity in entities)
                 {
-                    var grid = entity as IMyCubeGrid;
-
-                    if (grid == null || (grid.GetPosition() - cubeBlock.GetPosition()).LengthSquared() >= range * range)
-                        continue;
-
-                    var gridBlocks = ((MyCubeGrid)grid).GetBlocks();
+                    var gridBlocks = ((MyCubeGrid) entity).GetBlocks();
+                    DebugSession.Instance.WriteLine($"NaniteConstructionTargets.CheckConstructionOrProjectionAreaBeacons({cubeBlock.EntityId}).grid({entity.EntityId}).GetBlocks(): Grid has {gridBlocks} block(s)...");
                     foreach (IMySlimBlock block in gridBlocks)
                     {
                         BoundingBoxD blockbb;
                         block.GetWorldBoundingBox(out blockbb, true);
                         if (item.IsInsideBox(blockbb))
                             m_constructionBlock.ScanBlocksCache.Add(new BlockTarget(block, true, item));
+                        else
+                            DebugSession.Instance.WriteLine($"NaniteConstructionTargets.CheckConstructionOrProjectionAreaBeacons({cubeBlock.EntityId}).grid({entity.EntityId}).block({(block.FatBlock?.EntityId ?? -1)}): Beacon is outside bounding box");
                     }
                 }
             }

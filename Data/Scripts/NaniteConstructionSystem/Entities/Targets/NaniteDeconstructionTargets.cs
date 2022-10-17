@@ -139,12 +139,12 @@ namespace NaniteConstructionSystem.Entities.Targets
 
         public override void ParallelUpdate(List<IMyCubeGrid> NaniteGridGroup, List<BlockTarget> gridBlocks)
         {
+            DebugSession.Instance.WriteLine($"NaniteDeconstructionTargets.ParallelUpdate: Checking for deconstruction targets...");
             try
             {
                 // Add
                 foreach (var beaconBlock in NaniteConstructionManager.BeaconList.Where(x => x.Value is NaniteBeaconDeconstruct))
                 {
-
                     IMyCubeBlock item = (IMyCubeBlock)beaconBlock.Value.BeaconBlock;
 
                     if (item == null
@@ -158,11 +158,14 @@ namespace NaniteConstructionSystem.Entities.Targets
                         )
 						continue;
 
+                    DebugSession.Instance.WriteLine($"NaniteDeconstructionTargets.ParallelUpdate.beacon({item.EntityId}): Found deconstruction beacon!");
+
                     NaniteDeconstructionGrid deconstruct = new NaniteDeconstructionGrid(item.CubeGrid);
 
                     CreateGridStack(NaniteGridGroup, deconstruct, (MyCubeGrid)item.CubeGrid, (MyCubeBlock)item);
                     m_validBeaconedGrids.Add(deconstruct);
 
+                    DebugSession.Instance.WriteLine($"NaniteDeconstructionTargets.ParallelUpdate.beacon({item.EntityId}): Queued {item.CubeGrid.CustomName} for deconstruction.");
                     Logging.Instance.WriteLine($"[Deconstruction] Grid {item.CubeGrid.CustomName} queued for deconstruction", 1);
 
                     foreach (var slimBlock in deconstruct.RemoveList)

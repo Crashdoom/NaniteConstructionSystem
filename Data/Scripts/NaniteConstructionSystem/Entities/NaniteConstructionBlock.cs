@@ -154,6 +154,9 @@ namespace NaniteConstructionSystem.Entities
         private long m_entityId;
         public long EntityId {get { return m_entityId;} }
 
+        private string m_entityName;
+        public string EntityName { get { return m_entityName; } }
+
         public List<NaniteConstructionBlock> FactoryGroup;
         public NaniteConstructionBlock Master;
         public List<NaniteConstructionBlock> Slaves = new List<NaniteConstructionBlock>();
@@ -240,6 +243,7 @@ namespace NaniteConstructionSystem.Entities
 
             CheckGridGroup();
             m_entityId = ConstructionBlock.EntityId;
+            m_entityName = ConstructionBlock.CustomName;
 
             FactoryGroup = new List<NaniteConstructionBlock>();
             FactoryGroup.Add(this);
@@ -307,9 +311,9 @@ namespace NaniteConstructionSystem.Entities
                     }
                 }
 
-                if (Master == null)
+                if (Master == null) // If we're the primary factory
                 {
-                    if (m_updateCount % 300 == 0 && FactoryIsRunning() && (m_updateConnectedInventory || Master != null || Slaves.Count > 0) )
+                    if (m_updateCount % 300 == 0 && FactoryIsRunning() && (m_updateConnectedInventory || Master != null || Slaves.Count > 0))
                     {
                         m_updateConnectedInventory = false;
                         CheckGridGroup();
@@ -346,7 +350,12 @@ namespace NaniteConstructionSystem.Entities
                     }
                 }
                 else
+                {
                     m_scanningActive = false;
+
+                    foreach (var target in m_targets)
+                        target.ClearTargets();
+                }
 
                 if (m_forceProcessState || !m_scanningActive || m_updateCount > m_assemblerUpdateTimer + 600)
                     ProcessState();                          // ^Prevent factorystate deadlocks
@@ -680,7 +689,7 @@ namespace NaniteConstructionSystem.Entities
                 if (Master == null && Slaves?.Count == 0)
                     details.Append("Mode: Single Factory / Independent\n");
                 else if (Master != null)
-                    details.Append($"Mode: Cooperative, Worker (Primary #{Master.EntityId}\n");
+                    details.Append($"Mode: Cooperative, Worker\nPrimary: {Master.EntityName} (#{Master.EntityId})\n");
                 else
                     details.Append($"Mode: Cooperative, Primary (Workers: {Slaves?.Count ?? 0})\n");
 
@@ -695,14 +704,18 @@ namespace NaniteConstructionSystem.Entities
                 if (m_initInventory && Master == null)
                     details.Append($"\n-INITIALIZING-\nTasks left: {m_potentialInventoryBlocks.Count + m_potentialGasTanks.Count}\n");
 
-                if (m_totalScanBlocksCount > 0)
+                // No need to show percentage status if this isn't the Master node
+                if (Master == null)
                 {
-                    string percent = (((float)(m_totalScanBlocksCount - m_scanBlocksCache.Count)/m_totalScanBlocksCount) * 100).ToString("0.00");
-                    details.Append($"\nScanning - {percent}%\n"
-                      + $"{m_totalScanBlocksCount - m_scanBlocksCache.Count}/{m_totalScanBlocksCount} blocks\n\n");
+                    if (m_totalScanBlocksCount > 0)
+                    {
+                        string percent = (((float)(m_totalScanBlocksCount - m_scanBlocksCache.Count) / m_totalScanBlocksCount) * 100).ToString("0.00");
+                        details.Append($"\nScanning - {percent}%\n"
+                          + $"{m_totalScanBlocksCount - m_scanBlocksCache.Count}/{m_totalScanBlocksCount} blocks\n\n");
+                    }
+                    else
+                        details.Append($"\nWaiting ...\n\n");
                 }
-                else
-                    details.Append($"\nWaiting ...\n\n");
 
                 details.Append(m_targetDetails
                   + "-----\r\n"
@@ -713,8 +726,11 @@ namespace NaniteConstructionSystem.Entities
                 if (m_userDefinedNaniteLimit > 0)
                     details.Append($"Max Nanites: {m_userDefinedNaniteLimit}\r\n");
 
-                details.Append(m_invalidTargetDetails);
-                details.Append(m_missingComponentsDetails);
+                if (Master == null)
+                {
+                    details.Append(m_invalidTargetDetails);
+                    details.Append(m_missingComponentsDetails);
+                }
 
                 if (m_syncDetails.Length != details.Length)
                 {
@@ -1191,10 +1207,14 @@ namespace NaniteConstructionSystem.Entities
                     {
                         Stopwatch stopwatch = Stopwatch.StartNew();
                         SendFactoryGroup();
+                        DebugSession.Instance.WriteLine($"NaniteConstructionBlock.ScanForTargets({ConstructionBlock.EntityId}): Finished SendFactoryGroup()");
                         ProcessTargetsParallel();
+                        DebugSession.Instance.WriteLine($"NaniteConstructionBlock.ScanForTargets({ConstructionBlock.EntityId}): Finished ProcessTargetsParallel()");
                         ProcessTargets();
+                        DebugSession.Instance.WriteLine($"NaniteConstructionBlock.ScanForTargets({ConstructionBlock.EntityId}): Finished ProcessTargets()");
                         stopwatch.Stop();
-                        Logging.Instance.WriteLine($"ScanForTargets {ConstructionBlock.EntityId}: {(stopwatch.ElapsedTicks * 1000000)/Stopwatch.Frequency} microseconds", 1);
+                        DebugSession.Instance.WriteLine($"NaniteConstructionBlock.ScanForTargets({ConstructionBlock.EntityId}): Finished in {(stopwatch.ElapsedTicks * 1000000) / Stopwatch.Frequency} microseconds");
+                        Logging.Instance.WriteLine($"ScanForTargets[End] {ConstructionBlock.EntityId}: {(stopwatch.ElapsedTicks * 1000000)/Stopwatch.Frequency} microseconds", 1);
                     }
                     catch (InvalidOperationException e)
                     {
@@ -1295,6 +1315,7 @@ namespace NaniteConstructionSystem.Entities
 
                     foreach (var target in m_targets)
                     {
+                        DebugSession.Instance.WriteLine($"ProcessTargetsParallel {ConstructionBlock.EntityId}: Processing {target.TargetName}...");
                         target.PotentialTargetListCount = 0;
                         if (target is NaniteConstructionTargets || target is NaniteProjectionTargets)
                         {
@@ -1304,6 +1325,8 @@ namespace NaniteConstructionSystem.Entities
                         else if (target is NaniteDeconstructionTargets)
                             target.ParallelUpdate(GridGroup, m_scanBlocksCache);
                     }
+
+                    DebugSession.Instance.WriteLine($"ProcessTargetsParallel {ConstructionBlock.EntityId}: Retrieving grid for inventory block check...");
 
                     foreach (IMyCubeGrid grid in GridGroup)
                         grid.GetBlocks(newGridBlocks);
@@ -1320,7 +1343,6 @@ namespace NaniteConstructionSystem.Entities
                         }
                     }
 
-
                     foreach (IMySlimBlock block in newGridBlocks)
                         m_scanBlocksCache.Add(new BlockTarget(block));
 
@@ -1330,6 +1352,8 @@ namespace NaniteConstructionSystem.Entities
 
                 int maxBlocksToScan = NaniteConstructionManager.Settings != null ? NaniteConstructionManager.Settings.BlocksScannedPerSecond : 500;
                 List<BlockTarget> blocksToScan = new List<BlockTarget>();
+
+                DebugSession.Instance.WriteLine($"ProcessTargetsParallel {ConstructionBlock.EntityId}: {m_scanBlocksCache.Count} block(s) left to scan...");
 
                 // Add up to maxBlocksToScan to blocksToGo for processing in this iteration
                 foreach (var block in m_scanBlocksCache)
@@ -1344,9 +1368,16 @@ namespace NaniteConstructionSystem.Entities
                 foreach (var scanBlock in blocksToScan)
                     m_scanBlocksCache.Remove(scanBlock);
 
+                DebugSession.Instance.WriteLine($"ProcessTargetsParallel {ConstructionBlock.EntityId}: Preparing to scan {blocksToScan.Count} block(s), with {m_scanBlocksCache.Count} block(s) left to scan...");
+
                 foreach (var item in m_targets)
+                {
                     if (!(item is NaniteDeconstructionTargets))
+                    {
+                        DebugSession.Instance.WriteLine($"ProcessTargetsParallel {ConstructionBlock.EntityId}: Running ParallelUpdate for {item.TargetName}...");
                         item.ParallelUpdate(GridGroup, blocksToScan);
+                    }
+                }
             }
             catch (InvalidOperationException e)
             {
@@ -1369,27 +1400,45 @@ namespace NaniteConstructionSystem.Entities
                 // TODO: Move to new function
                 Dictionary<string, int> availableComponents = new Dictionary<string, int>();
                 // Retrieve the total number of components we have access to
+                DebugSession.Instance.WriteLine($"NaniteConstructionBlock {ConstructionBlock.EntityId}: Getting available components...");
                 InventoryManager.GetAvailableComponents(ref availableComponents);
+                DebugSession.Instance.WriteLine($"NaniteConstructionBlock {ConstructionBlock.EntityId}: Found {availableComponents.Count} types of components!");
 
                 // Subtract the total number of all components allocated to existing construction / projection targets
                 foreach (var item in m_targets.ToList())
-                    if (item is NaniteConstructionTargets || item is NaniteProjectionTargets)
-                        InventoryManager.SubtractAvailableComponents(item.TargetList.Cast<IMySlimBlock>().ToList(), ref availableComponents, item is NaniteProjectionTargets);
+                {
+                    List<object> blocksExceedingAvailable = new List<object>();
 
-                var factoryBlockList = NaniteConstructionManager.GetConstructionBlocks((IMyCubeGrid)ConstructionBlock.CubeGrid);
+                    if (item is NaniteConstructionTargets || item is NaniteProjectionTargets)
+                    {
+                        DebugSession.Instance.WriteLine($"NaniteConstructionBlock {ConstructionBlock.EntityId}: Running SubtractAvailableComponents for {item.TargetName}...");
+                        InventoryManager.SubtractAvailableComponents(item.TargetList, ref availableComponents, ref blocksExceedingAvailable, item is NaniteProjectionTargets);
+
+                        // Remove any blocks from the target list that exceed the available limit, but don't remove them from the potential targets list
+                        foreach (var blockExceedingAvailable in blocksExceedingAvailable)
+                            item.Remove(blockExceedingAvailable, false);
+
+                        DebugSession.Instance.WriteLine($"NaniteConstructionBlock {ConstructionBlock.EntityId}: Completed! Found {blocksExceedingAvailable.Count} targeted block(s) exceeding available components!");
+                    }
+                }
+
+                var factoryBlockList = NaniteConstructionManager.GetConstructionBlocks(ConstructionBlock.CubeGrid);
 
                 // Find new targets with the remaining unallocated components available
                 foreach (var item in m_targets.ToList())
                 {
+                    DebugSession.Instance.WriteLine($"NaniteConstructionBlock {ConstructionBlock.EntityId}: Running FindTargets for {item.TargetName}...");
                     m_potentialTargetsCount += item.PotentialTargetList.Count;
                     item.PotentialTargetListCount += item.PotentialTargetList.Count;
 
                     foreach (var slave in Slaves)
-                        PotentialTargetsCount = m_potentialTargetsCount;
+                        slave.PotentialTargetsCount = m_potentialTargetsCount;
 
                     item.FindTargets(ref availableComponents, factoryBlockList);
                 }
                 // END: Function
+
+                DebugSession.Instance.WriteLine($"NaniteConstructionBlock {ConstructionBlock.EntityId}: Re-checking available components...");
 
                 // Retrieve a list of all components available to us
                 availableComponents = new Dictionary<string, int>();

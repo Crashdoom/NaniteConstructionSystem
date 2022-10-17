@@ -21,6 +21,72 @@ namespace NaniteConstructionSystem
         }
     }
 
+    public class DebugSession
+    {
+        private static DebugSession m_instance;
+
+        private bool loggingEnabled = false;
+        private ConcurrentBag<string> m_debugCache = new ConcurrentBag<string>();
+
+        static public DebugSession Instance
+        {
+            get
+            {
+                if (m_instance == null)
+                    m_instance = new DebugSession();
+
+                return m_instance;
+            }
+        }
+
+        public DebugSession() {}
+
+        public void StartLogging()
+        {
+            loggingEnabled = true;
+            var date = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss.fff");
+            MyLog.Default.WriteLineAndConsole($"[Nanite] Started debug logging at {date}!");
+            m_debugCache.Add($"Started debug logging at {date}!");
+        }
+
+        public void StopLogging()
+        {
+            MyLog.Default.WriteLineAndConsole($"[Nanite] Stopped debug logging...");
+            try
+            {
+                loggingEnabled = false;
+                var date = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                TextWriter m_writer = MyAPIGateway.Utilities.WriteFileInWorldStorage($"Nanite_Debug_{date}.log", typeof(DebugSession));
+
+                while (!m_debugCache.IsEmpty)
+                {
+                    string line = null;
+                    m_debugCache.TryTake(out line);
+
+                    if (line != null)
+                    {
+                        m_writer.Write(line);
+                        m_writer.Flush();
+                    }
+                }
+
+                m_writer.Flush();
+                m_writer.Close();
+            } catch (Exception e) {
+                MyLog.Default.WriteLineAndConsole("[Nanite] Failed to save debug log file!");
+                MyLog.Default.WriteLineAndConsole(e.ToString());
+            }
+
+            m_debugCache = new ConcurrentBag<string>();
+        }
+
+        public void WriteLine(string text)
+        {
+            if (!loggingEnabled) return;
+            m_debugCache.Add(DateTime.Now.ToString("[HH:mm:ss.fff] ") + text);
+        }
+    }
+
     public class Logging
     {
         private static Logging m_instance;
@@ -28,7 +94,6 @@ namespace NaniteConstructionSystem
         private TextWriter m_writer;
         private ConcurrentBag<string> m_writeCache;
         private ConcurrentBag<WaitingToLog> m_waitingList;
-        private FastResourceLock m_lock;
         private bool m_busy;
         private string m_logFile;
 

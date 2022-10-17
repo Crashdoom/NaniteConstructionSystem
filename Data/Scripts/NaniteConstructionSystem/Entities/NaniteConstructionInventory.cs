@@ -145,6 +145,8 @@ namespace NaniteConstructionSystem.Entities
             if (MyAPIGateway.Session.CreativeMode)
                 return;
 
+            DebugSession.Instance.WriteLine($"NaniteConstructionInventory.SetupRequiredComponents(): {targetList.Count} target(s), {possibleTargetList.Count} possible target(s)...");
+
             Dictionary<string, int> missing = new Dictionary<string, int>();
             if (targetList.Count < maxTargets)
             {
@@ -172,7 +174,10 @@ namespace NaniteConstructionSystem.Entities
                 // If we're not supposed to use assemblers, there's no point in checking what components are required for
                 // blocks we're not actively targeting. Otherwise, we end up in a "MissingParts" loop.
                 if (!shouldUseAssemblers)
+                {
+                    DebugSession.Instance.WriteLine($"NaniteConstructionInventory.SetupRequiredComponents(): Skipping checking possibleTargetList because shouldUseAssemblers is false.");
                     return;
+                }
 
                 foreach (var item in possibleTargetList.ToList())
                 {
@@ -202,6 +207,8 @@ namespace NaniteConstructionSystem.Entities
                         });
                     }
                 }
+            } else {
+                DebugSession.Instance.WriteLine($"NaniteConstructionInventory.SetupRequiredComponents(): {targetList.Count} target(s) exceeds max targets of {maxTargets}!");
             }
         }
 
@@ -300,14 +307,15 @@ namespace NaniteConstructionSystem.Entities
             }
         }
 
-        internal void SubtractAvailableComponents(List<IMySlimBlock> targetList, ref Dictionary<string, int> availableComponents, bool isProjection)
+        internal void SubtractAvailableComponents(List<object> targetList, ref Dictionary<string, int> availableComponents, ref List<object> blocksExceedingAvailable, bool isProjection)
         {
             if (MyAPIGateway.Session.CreativeMode)
                 return;
 
             Dictionary<string, int> missing = new Dictionary<string, int>();
-            foreach (var item in targetList)
+            foreach (var target in targetList)
             {
+                IMySlimBlock item = (IMySlimBlock)target;
                 missing.Clear();
 
                 if (isProjection)
@@ -317,9 +325,19 @@ namespace NaniteConstructionSystem.Entities
                 } else
                     item.GetMissingComponents(missing);
 
+                var lAvailableComponents = availableComponents;
+                // Check to see if we have all of the components we need before removing them from availableComponents
+                var hasComponentsAvailable = missing.All(mc => lAvailableComponents.ContainsKey(mc.Key) && lAvailableComponents[mc.Key] >= mc.Value);
+
+                if (!hasComponentsAvailable)
+                {
+                    // If we don't have all the components we need, remove the block from the targetList by adding it to blocksExceedingAvailable
+                    blocksExceedingAvailable.Add(target);
+                    continue;
+                }
+
                 foreach (var component in missing)
-                    if (availableComponents.ContainsKey(component.Key))
-                        availableComponents[component.Key] -= component.Value;
+                    availableComponents[component.Key] -= component.Value;
             }
         }
 

@@ -19,6 +19,9 @@ namespace NaniteConstructionSystem.Entities
 
         public void Initialize()
         {
+            // DEBUG
+            //DebugSession.Instance.StartLogging();
+
             if (Sync.IsClient)
             {
                 Logging.Instance.WriteLine($"Nanite: Running RegisterSecureMessageHandler for Client...");
@@ -49,6 +52,9 @@ namespace NaniteConstructionSystem.Entities
 
         public void Unload()
         {
+            // DEBUG
+            //DebugSession.Instance.StopLogging();
+
             if (m_init)
             {
                 MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(8950, HandleUpdateState);

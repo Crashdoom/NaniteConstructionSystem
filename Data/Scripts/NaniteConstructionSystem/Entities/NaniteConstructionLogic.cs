@@ -23,6 +23,7 @@ namespace NaniteConstructionSystem.Entities
         public override void UpdateOnceBeforeFrame()
         {
             Logging.Instance.WriteLine($"[Nanite] Creating LargeControlFacility...", 2);
+
             try {
                 base.UpdateOnceBeforeFrame();
                 m_block = NaniteConstructionManager.CreateNaniteFactory(Entity);

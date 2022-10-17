@@ -139,6 +139,7 @@ namespace NaniteConstructionSystem.Entities.Targets
                     AddTarget(item);
 
                     var def = item.BlockDefinition as MyCubeBlockDefinition;
+                    DebugSession.Instance.WriteLine($"NaniteConstructionTargets.block({item.FatBlock?.EntityId ?? -1}): Adding Construction/Repair target.");
                     Logging.Instance.WriteLine(string.Format("[Construction] Adding Construction/Repair Target: conid={0} subtype={1} entityID={2} position={3}",
                         m_constructionBlock.ConstructionBlock.EntityId, def.Id.SubtypeId, item.FatBlock != null ? item.FatBlock.EntityId : 0, item.Position), 1);
 
@@ -146,10 +147,14 @@ namespace NaniteConstructionSystem.Entities.Targets
                         break;
                 }
                 else if (!foundMissingComponents)
+                {
+                    DebugSession.Instance.WriteLine($"NaniteConstructionTargets.block({item.FatBlock?.EntityId ?? -1}): Failed adding Construction/Repair target due to missing components.");
                     LastInvalidTargetReason = "Missing components";
+                }
 
                 else if (!m_constructionBlock.HasRequiredPowerForNewTarget(this))
                 {
+                    DebugSession.Instance.WriteLine($"NaniteConstructionTargets.block({item.FatBlock?.EntityId ?? -1}): Insufficient power to add this Construction/Repair target!");
                     LastInvalidTargetReason = "Insufficient power for another target.";
                     break;
                 }
@@ -437,8 +442,12 @@ namespace NaniteConstructionSystem.Entities.Targets
                   || !IsInRange(item.GetPosition(), m_maxDistance) )
                     continue;
 
+                DebugSession.Instance.WriteLine($"NaniteConstructionTargets.CheckBeacons({item.EntityId}): Beacon is valid, checking connected grids...");
+
                 GetBeaconBlocks(item.CubeGrid);
                 GetBeaconBlocksRetryCounter = 0;
+
+                DebugSession.Instance.WriteLine($"NaniteConstructionTargets.CheckBeacons({item.EntityId}): Retrieved {beaconBlocks.Count} grid blocks!");
 
                 foreach (var block in beaconBlocks)
                     m_constructionBlock.ScanBlocksCache.Add(new BlockTarget(block, true));
@@ -452,13 +461,20 @@ namespace NaniteConstructionSystem.Entities.Targets
                 beaconBlocks.Clear();
                 List<IMyCubeGrid> connectedGrids = new List<IMyCubeGrid>();
                 MyAPIGateway.GridGroups.GetGroup(BeaconBlockGrid, GridLinkTypeEnum.Physical, connectedGrids);
+
+                DebugSession.Instance.WriteLine($"NaniteConstructionTargets.GetBeaconBlocks({BeaconBlockGrid.EntityId}): Found {connectedGrids.Count} grid(s). Retrieving blocks...");
+
                 foreach (var grid in connectedGrids)
+                {
+                    DebugSession.Instance.WriteLine($"NaniteConstructionTargets.GetBeaconBlocks.grid({grid.EntityId}).GetBlocks: Retrieving blocks from Grid {grid.CustomName} (EntityId#{grid.EntityId})...");
                     grid.GetBlocks(beaconBlocks);
+                }
             }
             catch (InvalidOperationException)
             {
                 if (GetBeaconBlocksRetryCounter++ > 60)
                 {
+                    DebugSession.Instance.WriteLine($"NaniteConstructionTargets.GetBeaconBlocks.InvalidOperationException: GetBeaconBlocks caused an infinite loop!");
                     Logging.Instance.WriteLine("NaniteConstructionTargets.GetBeaconBlocks caused an infinite loop. Aborting.");
                     return;
                 }
@@ -466,7 +482,10 @@ namespace NaniteConstructionSystem.Entities.Targets
                 GetBeaconBlocks(BeaconBlockGrid);
             }
             catch (Exception ex)
-                { Logging.Instance.WriteLine($"NaniteConstructionTargets.GetBeaconBlocks:\n{ex.ToString()}"); }
+            {
+                DebugSession.Instance.WriteLine($"NaniteConstructionTargets.GetBeaconBlocks.Exception: {ex}");
+                Logging.Instance.WriteLine($"NaniteConstructionTargets.GetBeaconBlocks:\n{ex}");
+            }
         }
 
         public override void CheckAreaBeacons()
