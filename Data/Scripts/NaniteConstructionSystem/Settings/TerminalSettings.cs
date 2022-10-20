@@ -46,6 +46,7 @@ namespace NaniteConstructionSystem.Settings
         public bool AllowLifeSupport { get; set; }
         public int MaxNanites { get; set; }
         public bool UseAssemblers { get; set; }
+        public bool SetAsPrimary { get; set; }
 
         public NaniteTerminalSettings()
         {
@@ -57,6 +58,7 @@ namespace NaniteConstructionSystem.Settings
             AllowLifeSupport = true;
             MaxNanites = 0;
             UseAssemblers = false;
+            SetAsPrimary = false;
         }
     }
 

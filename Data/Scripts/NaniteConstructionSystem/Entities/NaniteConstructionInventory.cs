@@ -172,7 +172,10 @@ namespace NaniteConstructionSystem.Entities
                 // If we're not supposed to use assemblers, there's no point in checking what components are required for
                 // blocks we're not actively targeting. Otherwise, we end up in a "MissingParts" loop.
                 if (!shouldUseAssemblers)
+                {
+                    Logging.Instance.WriteLine($"[SetupRequiredComponents:Factory({m_constructionBlock.EntityId})]: UseAssemblers is false, skipping possible target list...");
                     return;
+                }
 
                 foreach (var item in possibleTargetList.ToList())
                 {

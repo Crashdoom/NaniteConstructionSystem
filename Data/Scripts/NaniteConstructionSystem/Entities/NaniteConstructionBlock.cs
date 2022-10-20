@@ -34,6 +34,8 @@ using NaniteConstructionSystem.Extensions;
 using NaniteConstructionSystem;
 using NaniteConstructionSystem.Integration;
 using NaniteConstructionSystem.Settings;
+using VRage.Serialization;
+using Sandbox.Game.WorldEnvironment.Modules;
 
 namespace NaniteConstructionSystem.Entities
 {
@@ -43,7 +45,8 @@ namespace NaniteConstructionSystem.Entities
         public enum FactoryStates
         {
             Disabled, Enabled, SpoolingUp, SpoolingDown,
-            MissingParts, MissingPower, InvalidTargets, Active
+            MissingParts, MissingPower, InvalidTargets, Active,
+            BadCoopConfiguration
         }
 
         private IMyShipWelder m_constructionBlock;
@@ -168,6 +171,9 @@ namespace NaniteConstructionSystem.Entities
         private bool m_scanningActive;
         private bool m_initInventory = true;
         private bool m_isFunctional;
+
+        // Bad Configuration is set whenever there is no primary node on the grid, but multiple factories exist
+        protected bool m_coop_badConfiguration = false;
         public bool IsFunctional {get {return m_isFunctional;} }
         private bool firstPass = false;
 
@@ -284,7 +290,10 @@ namespace NaniteConstructionSystem.Entities
                 });
 
                 if (m_scanningActive && m_updateCount - m_lastScanStatusUpdate > 3600)
+                {
+                    Logging.Instance.WriteLine($"WARN Factory {ConstructionBlock.DisplayName} (EntityId#{ConstructionBlock.EntityId}) hasn't updated scanning status for longer than 3600 frames (approx 60 seconds), resetting scan state...");
                     m_scanningActive = false;
+                }
             }
 
             if (Sync.IsServer)
@@ -307,7 +316,7 @@ namespace NaniteConstructionSystem.Entities
                     }
                 }
 
-                if (Master == null)
+                if (Master == null && !m_coop_badConfiguration)
                 {
                     if (m_updateCount % 300 == 0 && FactoryIsRunning() && (m_updateConnectedInventory || Master != null || Slaves.Count > 0) )
                     {
@@ -434,6 +443,16 @@ namespace NaniteConstructionSystem.Entities
         /// <summary> Checks existing slave-master connections and tries to make new ones. Runs on parallel thread </summary>
         private void CheckSlaveMaster()
         {
+            if (!NaniteConstructionManager.TerminalSettings.ContainsKey(EntityId))
+            {
+                Logging.Instance.WriteLine($"[Factory:{EntityId}] CheckSlaveMaster(): Could not retrieve TerminalSettings for this factory!");
+                m_coop_badConfiguration = true;
+                return;
+            }
+
+            bool shouldThisFactoryBePrimary = NaniteConstructionManager.TerminalSettings[EntityId].SetAsPrimary;
+            Logging.Instance.WriteLine($"[Factory:{EntityId}] CheckSlaveMaster(): shouldThisFactoryBePrimary={shouldThisFactoryBePrimary}", 1);
+
             string reason = "";
             if (Master != null && !MasterSlaveIsValid(Master, out reason, true))
                 MyAPIGateway.Utilities.InvokeOnGameThread(() =>
@@ -452,58 +471,91 @@ namespace NaniteConstructionSystem.Entities
 
             else if (Master == null)
             {
-                bool newMasterFound = false;
+                bool hasPrimaryNodeConflict = false;
+                NaniteConstructionBlock newIntendedMaster = null;
                 foreach (var factory in NaniteConstructionManager.NaniteBlocks)
                 { // Check for a valid master and then become slave/move all slaves over
                     string reason3 = "";
 
-                    if (factory.Value != this && factory.Value.Master == null && MasterSlaveIsValid(factory.Value, out reason3))
+                    bool isFactoryPrimaryConfigured = NaniteConstructionManager.TerminalSettings.ContainsKey(factory.Value.EntityId)
+                      && NaniteConstructionManager.TerminalSettings[factory.Value.EntityId].SetAsPrimary;
+
+                    Logging.Instance.WriteLine($"[Factory:{EntityId}] CheckSlaveMaster(): Checking if {factory.Value.EntityId} is primary... (isFactoryPrimaryConfigured={isFactoryPrimaryConfigured}, hasMaster: {factory.Value.Master != null})");
+
+                    if (factory.Value != this && factory.Value.Master == null && isFactoryPrimaryConfigured && MasterSlaveIsValid(factory.Value, out reason3))
                     {
-                        MyAPIGateway.Utilities.InvokeOnGameThread(() =>
+                        try
                         {
-                            try
+                            // If we should be a primary factory, but there's an existing factory with workers, turn its primary status off
+                            if (shouldThisFactoryBePrimary && factory.Value.Slaves.Count > 0)
                             {
-                                if (factory.Value.Master == null)
-                                {
-                                    Master = factory.Value;
+                                if (!NaniteConstructionManager.TerminalSettings.ContainsKey(factory.Value.EntityId))
+                                    NaniteConstructionManager.TerminalSettings[factory.Value.EntityId] = new NaniteTerminalSettings();
 
-                                    if (!Master.Slaves.Contains(this))
-                                    {
-                                        Master.Slaves.Add(this);
-                                        Logging.Instance.WriteLine($"[Master-Slave] Factory {m_entityId} is now slaved to {Master.EntityId}.", 1);
-                                    }
-
-                                    foreach (var slave in Slaves)
-                                    {
-                                        slave.Slaves.Clear();
-                                        slave.Master = factory.Value;
-
-                                        if (!Master.Slaves.Contains(slave))
-                                        {
-                                            Master.Slaves.Add(slave);
-                                            Logging.Instance.WriteLine($"[Master-Slave] Factory {slave.EntityId} is now slaved to {Master.EntityId}.", 1);
-                                        }
-                                    }
-                                    Slaves.Clear();
-                                }
+                                NaniteConstructionManager.TerminalSettings[factory.Value.EntityId].SetAsPrimary = false;
+                                Logging.Instance.WriteLine($"[Factory] Transferring primary status from {factory.Value.EntityId} to {EntityId}...");
+                                return;
                             }
-                            catch (Exception e)
+
+                            if (shouldThisFactoryBePrimary)
                             {
-                                Logging.Instance.WriteLine($"Exception: CheckSlaveMaster, third InvokeOnGameThread: {e.ToString()}");
+                                Logging.Instance.WriteLine($"[Factory:{EntityId}] CheckSlaveMaster(): This factory is marked as primary, skipping check for primary node...");
+                                return;
                             }
-                        });
 
-                        newMasterFound = true;
-                        break;
-                    }
+                            // Make sure we haven't picked a new primary yet AND we aren't supposed to be a primary node
+                            if (newIntendedMaster == null)
+                                newIntendedMaster = factory.Value;
+                            else
+                            {
+                                // If we already have a primary, OR we have worker nodes (meaning we are a primary node) then forcefully set the node we found to be a worker
+                                IMyCubeGrid grid = factory.Value.ConstructionBlock.CubeGrid;
+                                Logging.Instance.WriteLine($"WARN: Detected multiple primary factories on Grid#{grid.EntityId} ({grid.DisplayName})! Ignoring until resolved...");
+                                hasPrimaryNodeConflict = true;
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Logging.Instance.WriteLine($"Exception: CheckSlaveMaster, third InvokeOnGameThread: {e.ToString()}");
+                        }
+
+                        if (hasPrimaryNodeConflict)
+                        {
+                            Logging.Instance.WriteLine($"[Factory:{EntityId}] CheckSlaveMaster(): Primary node conflict detected -- Multiple primary nodes on the same grid!");
+                            m_coop_badConfiguration = true;
+                            return;
+                        }
+                    } else if (reason3.Length > 0)
+                        Logging.Instance.WriteLine($"[Factory:{EntityId}] CheckSlaveMaster(): Failed MasterSlaveIsValid check -- {reason3}");
                 }
 
-                if (!newMasterFound && Slaves.Count > 0)
+                // If there's a new intended master, and there's no conflict
+                if (newIntendedMaster != null)
                 {
+                    MyAPIGateway.Utilities.InvokeOnGameThread(() =>
+                    {
+                        Master = newIntendedMaster;
+                        Slaves.Clear();
+
+                        if (!Master.Slaves.Contains(this))
+                            Master.Slaves.Add(this);
+
+                        Logging.Instance.WriteLine($"[Master-Slave] Factory {EntityId} is now slaved to {Master.EntityId}.");
+                        m_coop_badConfiguration = false;
+                    });
+                } else if (!shouldThisFactoryBePrimary) {
+                    Logging.Instance.WriteLine($"[Factory:{EntityId}] CheckSlaveMaster(): Could not find a suitable primary node...");
+                }
+
+                // If we didn't find a new primary node, we're primary (yay!), perform some clean up on worker nodes
+                if (newIntendedMaster == null && Slaves.Count > 0)
+                {
+                    m_coop_badConfiguration = false;
                     foreach (var slave in Slaves)
                     {
                         string reason2 = "";
                         slave.Slaves.Clear();
+                        slave.m_coop_badConfiguration = false;
 
                         if (!MasterSlaveIsValid(slave, out reason2))
                             MyAPIGateway.Utilities.InvokeOnGameThread(() =>
@@ -615,6 +667,8 @@ namespace NaniteConstructionSystem.Entities
 
             if (Sync.IsServer)
             {
+                NaniteConstructionBlock factory = Master != null ? Master : this;
+
                 MyAPIGateway.Parallel.Start(() =>
                 {
                     try
@@ -624,8 +678,6 @@ namespace NaniteConstructionSystem.Entities
                         StringBuilder missingComponentsDetailsParallel = new StringBuilder();
                         bool invalidTitleAppended = false;
                         bool missingCompTitleAppended = false;
-
-                        NaniteConstructionBlock factory = Master != null ? Master : this;
 
                         foreach (var item in factory.Targets.ToList())
                         {
@@ -709,6 +761,14 @@ namespace NaniteConstructionSystem.Entities
                   + $"Power Required: {_power} MW\r\n"
                   + $"Status: {m_factoryState.ToString()}\r\n"
                   + $"Active Nanites: {m_particleManager.Particles.Count}\r\n");
+
+                if (m_coop_badConfiguration)
+                {
+                    details.Append("-----\r\nMultiple Nanite Factories were detected on this grid, but either:\r\n");
+                    details.Append("- More than ONE factory is set to Primary Node; or\r\n");
+                    details.Append("- No factories have Primary Node set.\r\n");
+                    details.Append("\r\nPlease allow 30-60 seconds after resolving the issue for the factory status to update.\r\n-----\r\n");
+                }
 
                 if (m_userDefinedNaniteLimit > 0)
                     details.Append($"Max Nanites: {m_userDefinedNaniteLimit}\r\n");
@@ -1086,7 +1146,7 @@ namespace NaniteConstructionSystem.Entities
 
                 if (queueableAssemblers.Count < 1)
                 {
-                    Logging.Instance.WriteLine("[Assembler] No queuable assemblers found!", 1);
+                    Logging.Instance.WriteLine($"[Assembler:Factory({EntityId})] No queuable assemblers found!");
                     return;
                 }
 
@@ -1591,9 +1651,10 @@ namespace NaniteConstructionSystem.Entities
 
                     else if (Master == null)
                     {
-                        if (m_targetsCount == 0 && m_potentialTargetsCount > 0 && !IsPowered())
+                        if (m_coop_badConfiguration)
+                            newState = FactoryStates.BadCoopConfiguration;
+                        else if (m_targetsCount == 0 && m_potentialTargetsCount > 0 && !IsPowered())
                             newState = FactoryStates.MissingPower;
-
                         else if (m_targetsCount == 0 && m_potentialTargetsCount > 0)
                         {
                             newState = FactoryStates.InvalidTargets;

@@ -68,8 +68,8 @@ namespace NaniteConstructionSystem
     public class NaniteVersionClass
     {
         public int Major = 2;
-        public int Revision = 0;
-        public int Build = 6;
+        public int Revision = 1;
+        public int Build = 1;
 
         public NaniteVersionClass(){}
     }
@@ -577,6 +577,28 @@ namespace NaniteConstructionSystem
                 m_sync.SendTerminalSettings(x);
             };
             m_customControls.Add(useAssemblerCheck);
+
+            // --- Set as Primary Checkbox
+            var setAsPrimaryCheck = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlCheckbox, Ingame.IMyShipWelder>("SetAsPrimary");
+            setAsPrimaryCheck.Title = MyStringId.GetOrCompute("Primary Node (Cooperative Mode)");
+            setAsPrimaryCheck.Tooltip = MyStringId.GetOrCompute("When checked, this factory will act as the primary node in cooperative mode. (Cooperative mode requires two or more factories on the same grid.)");
+            setAsPrimaryCheck.Getter = (x) =>
+            {
+                if (!TerminalSettings.ContainsKey(x.EntityId))
+                    TerminalSettings.Add(x.EntityId, new NaniteTerminalSettings());
+
+                return TerminalSettings[x.EntityId].SetAsPrimary;
+            };
+
+            setAsPrimaryCheck.Setter = (x, y) =>
+            {
+                if (!TerminalSettings.ContainsKey(x.EntityId))
+                    TerminalSettings.Add(x.EntityId, new NaniteTerminalSettings());
+
+                TerminalSettings[x.EntityId].SetAsPrimary = y;
+                m_sync.SendTerminalSettings(x);
+            };
+            m_customControls.Add(setAsPrimaryCheck);
 
             // --- Factory checkbox in assembler
             var allowFactoryCheck = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlCheckbox, Ingame.IMyAssembler>("AllowFactory");
